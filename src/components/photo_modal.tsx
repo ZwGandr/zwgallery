@@ -16,6 +16,7 @@ import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import CameraName from "./camera_name.tsx";
+import {BASE_API2} from "../constants/api.ts";
 
 export interface PhotoModalProps {
   photo: Photo
@@ -33,7 +34,7 @@ export default function PhotoModal(props: PhotoModalProps) {
     if (props.isOpen) {
       setLoading(true)
       setTimeout(() => {
-        axios.get<Response<Photo>>(`https://api.gallery.boar.ac.cn/photos/get?id=${props.photo.id}`).then(res => {
+        axios.get<Response<Photo>>(`${BASE_API2}/photos/get?id=${props.photo.id}`).then(res => {
           setPhoto(res.data.payload)
           setLoading(false)
         })

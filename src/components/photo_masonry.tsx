@@ -13,6 +13,7 @@ import {
   useScroller
 } from "masonic";
 import { useNavigate } from "react-router-dom";
+import { BASE_API2 } from "../constants/api.ts";
 
 
 export default function PhotoMasonry(props: { prefectureId?: string, cityId?: string }) {
@@ -38,7 +39,7 @@ export default function PhotoMasonry(props: { prefectureId?: string, cityId?: st
   }), [props.cityId, props.prefectureId])
 
   useEffect(() => {
-    axios.get<Response<Photo[]>>('https://api.gallery.boar.ac.cn/photos/all', {
+    axios.get<Response<Photo[]>>(`${ BASE_API2 }/photos/all`, {
       params: {
         ...query,
         page_size: 20
@@ -54,12 +55,12 @@ export default function PhotoMasonry(props: { prefectureId?: string, cityId?: st
     }
     loadedIndex.current.push({ startIndex, stopIndex })
 
-    const lastDate = (items[items.length - 1] as Photo).metadata.datetime
-    axios.get<Response<Photo[]>>('https://api.gallery.boar.ac.cn/photos/all', {
+    const last_id = (items[items.length - 1] as Photo).id
+    axios.get<Response<Photo[]>>(`${ BASE_API2 }/photos/all`, {
       params: {
         ...query,
         page_size: stopIndex - startIndex,
-        last_datetime: lastDate,
+        last_id: last_id,
       }
     }).then((res) => {
       if (res.data.payload.length > 0) {

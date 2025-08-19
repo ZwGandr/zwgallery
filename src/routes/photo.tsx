@@ -25,6 +25,7 @@ import { useTranslation } from "react-i18next";
 import CameraName from "../components/camera_name.tsx";
 import { RxQuestionMarkCircled } from "react-icons/rx";
 import Zoom from 'react-medium-image-zoom'
+import {BASE_API2} from "../constants/api.ts";
 
 export default function PhotoPage() {
   const { id } = useParams()
@@ -34,7 +35,7 @@ export default function PhotoPage() {
   const [showHDR, setShowHDR] = useState(false);
 
   useEffect(() => {
-    axios.get<Response<Photo>>('https://api.gallery.boar.ac.cn/photos/get', {
+    axios.get<Response<Photo>>(`${BASE_API2}/photos/get`, {
       params: { id }
     }).then((res) => {
       setPhoto(res.data.payload)
@@ -193,19 +194,19 @@ export default function PhotoPage() {
                 <DialogMap coordinate={photo.metadata.location}/>
                 <CardFooter
                     className="justify-between before:bg-white/10 border-white/20 border-1 overflow-hidden p-0 absolute before:rounded-xl rounded-large bottom-1 shadow-small right-1 z-10 w-auto font-normal">
-                    <Button
-                        className="text-tiny text-white bg-black/20"
-                        variant="flat"
-                        color="default"
-                        radius="lg"
-                        size="sm"
-                        isIconOnly
-                        onPress={() => {
-                          window.open(`https://maps.google.com/?q=${photo.metadata.location!.latitude},${photo.metadata.location!.longitude}`)
-                        }}
-                    >
-                        <MdOutlineOpenInNew size={16}/>
-                    </Button>
+                    {/*<Button*/}
+                    {/*    className="text-tiny text-white bg-black/20"*/}
+                    {/*    variant="flat"*/}
+                    {/*    color="default"*/}
+                    {/*    radius="lg"*/}
+                    {/*    size="sm"*/}
+                    {/*    isIconOnly*/}
+                    {/*    onPress={() => {*/}
+                    {/*      window.open(`https://maps.google.com/?q=${photo.metadata.location!.latitude},${photo.metadata.location!.longitude}`)*/}
+                    {/*    }}*/}
+                    {/*>*/}
+                    {/*    <MdOutlineOpenInNew size={16}/>*/}
+                    {/*</Button>*/}
                 </CardFooter>
             </Card>
         }

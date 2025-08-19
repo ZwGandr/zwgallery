@@ -1,6 +1,6 @@
 {
-  "name": "boar-gallery",
-  "private": true,
+  "name": "zwgallery",
+  "private": false,
   "version": "0.0.0",
   "type": "module",
   "scripts": {

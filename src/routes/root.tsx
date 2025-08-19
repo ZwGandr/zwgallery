@@ -22,10 +22,11 @@ import moment from "moment";
 import gradLeft from '../assets/gradients/left.png';
 import gradRight from '../assets/gradients/right.png';
 import { FaDice } from "react-icons/fa6";
+import {BASE_API2} from "../constants/api.ts";
 
 const routes = [
   { route: '/', text: 'sidebar.home', icon: <TbHome size={22}/> },
-  { route: '/shuin', text: 'sidebar.shuin', icon: <TbBook size={22}/> },
+  // { route: '/shuin', text: 'sidebar.shuin', icon: <TbBook size={22}/> },
   { route: '/map', text: 'sidebar.map', icon: <TbMap size={22}/> },
 ]
 
@@ -142,7 +143,7 @@ export default function Root() {
                   className="w-full pt-3 font-bold"
                   size="lg"
                   onPress={async () => {
-                    const id = (await axios.get<Response<number>>('https://api.gallery.boar.ac.cn/photos/lucky')).data.payload
+                    const id = (await axios.get<Response<number>>(`${BASE_API2}/photos/lucky`)).data.payload
                     navigate(`/photo/${id}`)
                     setIsMenuOpen(false)
                   }}
@@ -184,7 +185,7 @@ export default function Root() {
                     <ListboxItem
                       key='lucky'
                       onPress={async () => {
-                        const id = (await axios.get<Response<number>>('https://api.gallery.boar.ac.cn/photos/lucky')).data.payload
+                        const id = (await axios.get<Response<number>>(`${BASE_API2}/photos/lucky`)).data.payload
                         navigate(`/photo/${id}`)
                       }}
                       className="px-4 py-3"
