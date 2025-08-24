@@ -194,19 +194,19 @@ export default function PhotoPage() {
                 <DialogMap coordinate={photo.metadata.location}/>
                 <CardFooter
                     className="justify-between before:bg-white/10 border-white/20 border-1 overflow-hidden p-0 absolute before:rounded-xl rounded-large bottom-1 shadow-small right-1 z-10 w-auto font-normal">
-                    {/*<Button*/}
-                    {/*    className="text-tiny text-white bg-black/20"*/}
-                    {/*    variant="flat"*/}
-                    {/*    color="default"*/}
-                    {/*    radius="lg"*/}
-                    {/*    size="sm"*/}
-                    {/*    isIconOnly*/}
-                    {/*    onPress={() => {*/}
-                    {/*      window.open(`https://maps.google.com/?q=${photo.metadata.location!.latitude},${photo.metadata.location!.longitude}`)*/}
-                    {/*    }}*/}
-                    {/*>*/}
-                    {/*    <MdOutlineOpenInNew size={16}/>*/}
-                    {/*</Button>*/}
+                    <Button
+                        className="text-tiny text-white bg-black/20"
+                        variant="flat"
+                        color="default"
+                        radius="lg"
+                        size="sm"
+                        isIconOnly
+                        onPress={() => {
+                          window.open(`https://maps.google.com/?q=${photo.metadata.location!.latitude},${photo.metadata.location!.longitude}`)
+                        }}
+                    >
+                        <MdOutlineOpenInNew size={16}/>
+                    </Button>
                 </CardFooter>
             </Card>
         }

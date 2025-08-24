@@ -9,7 +9,7 @@ import {
   NavbarItem, NavbarMenu, NavbarMenuItem, NavbarMenuToggle, Spacer
 } from "@heroui/react";
 import useDarkMode from "use-dark-mode";
-import { TbBook, TbHome, TbMap, TbMoon, TbSun } from "react-icons/tb";
+import { TbHome, TbMap, TbMoon, TbSun } from "react-icons/tb";
 import { Outlet, useNavigate } from "react-router-dom";
 import { LoadingContext } from "../contexts/loading";
 import { useEffect, useState } from "react";
