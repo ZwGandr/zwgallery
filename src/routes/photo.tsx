@@ -93,7 +93,7 @@ export default function PhotoPage() {
           <div className='mt-4 flex justify-end'>
             <div className='flex justify-center items-center gap-2'>
               <Switch isSelected={showHDR} onValueChange={setShowHDR}>
-                {t('photo.enable_hdr')}
+                {t('photo.switch_real')}
               </Switch>
               <Tooltip
                 content={t('photo.hdr_tooltip')}

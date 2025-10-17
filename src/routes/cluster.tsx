@@ -5,24 +5,24 @@ import { Card } from "@heroui/react";
 import useDarkMode from "use-dark-mode";
 import { Annotation, ColorScheme, Map, MapType } from "mapkit-react";
 import { MapTokenContext } from "../contexts/map_token.tsx";
+import { BASE_API2 } from "../constants/api.ts";
 
 export default function ClusterPage() {
   const darkmode = useDarkMode()
   const [clusterItems, setClusterItems] = useState<PhotoClusterItem[]>([])
   const [country, setCountry] = useState<Country>()
-  // const [countries, setCountries] = useState<Country[]>([])
   const token = useContext(MapTokenContext)
   const appleRef = useRef<mapkit.Map | null>(null)
 
   useEffect(() => {
-    axios.get<Response<Country[]>>('https://api.gallery.boar.ac.cn/geo/countries').then((res) => {
+    axios.get<Response<Country[]>>(`https://${BASE_API2}/geo/countries`).then((res) => {
       // setCountries(res.data.payload)
       setCountry(res.data.payload[0])
     })
   }, []);
 
   useEffect(() => {
-    axios.get<Response<PhotoClusterItem[]>>(`https://api.gallery.boar.ac.cn/photos/cluster?country_id=${country?.id}`).then((res) => {
+    axios.get<Response<PhotoClusterItem[]>>(`https://${BASE_API2}/photos/cluster?country_id=${country?.id}`).then((res) => {
       setClusterItems(res.data.payload)
     })
   }, [country])

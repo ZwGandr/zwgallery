@@ -5,6 +5,7 @@ import axios from "axios";
 import { Prefecture, Response } from "../models/gallery.ts";
 import { Chip, Select, SelectItem } from "@heroui/react";
 import { useTranslation } from "react-i18next";
+import { BASE_API2 } from "../constants/api.ts";
 
 export default function PrefecturePage() {
   const params = useParams()
@@ -13,7 +14,7 @@ export default function PrefecturePage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    axios.get<Response<Prefecture>>('https://api.gallery.boar.ac.cn/geo/prefecture', {
+    axios.get<Response<Prefecture>>(`https://${BASE_API2}/geo/prefecture`, {
       params: {
         id: params.prefectureId,
         with_cities: true
