@@ -14,7 +14,7 @@ import { useTranslation } from "react-i18next";
 import { Select, SelectItem } from "@heroui/react";
 import useDarkMode from "use-dark-mode";
 import { useNavigate } from "react-router-dom";
-import { BASE_API2 } from "../constants/api.ts";
+// import { BASE_API2 } from "../constants/api.ts";
 
 export default function MapPage() {
   const darkmode = useDarkMode()
@@ -28,7 +28,7 @@ export default function MapPage() {
   const { t } = useTranslation()
 
   useEffect(() => {
-    axios.get<Response<Country[]>>(`https://${BASE_API2}/geo/countries`).then((res) => {
+    axios.get<Response<Country[]>>(`https://api.gallery.boar.ac.cn/geo/countries`).then((res) => {
       setCountries(res.data.payload)
       setCountry(res.data.payload[0])
     })
@@ -36,7 +36,7 @@ export default function MapPage() {
 
   useEffect(() => {
     if (country) {
-      axios.get<Response<Prefecture[]>>(`https://${BASE_API2}/geo/prefectures`, {
+      axios.get<Response<Prefecture[]>>(`https://api.gallery.boar.ac.cn/geo/prefectures`, {
         params: {
           country_id: country.id,
           with_photos_count: true

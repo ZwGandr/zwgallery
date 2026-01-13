@@ -26,8 +26,8 @@ import {BASE_API2} from "../constants/api.ts";
 
 const routes = [
   { route: '/', text: 'sidebar.home', icon: <TbHome size={22}/> },
-  // { route: '/shuin', text: 'sidebar.shuin', icon: <TbBook size={22}/> },
   { route: '/map', text: 'sidebar.map', icon: <TbMap size={22}/> },
+  {route: '/compare', text: 'sidebar.compare', icon: <TbMap size={22}/>}
 ]
 
 export default function Root() {
@@ -38,7 +38,7 @@ export default function Root() {
   });
 
   useEffect(() => {
-    axios.get<Response<string>>(`https://${BASE_API2}/geo/ip`).then(async (res) => {
+    axios.get<Response<string>>(`https://api.gallery.boar.ac.cn/geo/ip`).then(async (res) => {
       if (res.data.payload === 'CN') {
         // mapbox
         axios.get<Response<string>>('https://api.gallery.boar.ac.cn/mapbox/token').then((res) => {
@@ -159,7 +159,6 @@ export default function Root() {
 
               <div className='text-tiny text-default-400'>
                 <p>{t('copyright.reserved', { year: moment().year() })}</p>
-                <p className='mt-2'>{t('copyright.description')}</p>
               </div>
             </NavbarMenu>
           </Navbar>
@@ -202,7 +201,6 @@ export default function Root() {
 
               <div className='text-tiny text-default-300 px-4'>
                 <p>{t('copyright.reserved', { year: moment().year() })}</p>
-                <p className='mt-2'>{t('copyright.description')}</p>
               </div>
             </div>
             <div className='min-w-0' style={{ flex: '1 1 auto' }}>

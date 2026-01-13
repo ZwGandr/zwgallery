@@ -3,7 +3,8 @@ export default {
     "sidebar.home": "ホーム",
     "sidebar.map": "マップ",
     "sidebar.shuin": "御朱印",
-    "sidebar.lucky": "巡礼対比",
+    "sidebar.lucky": "運試し",
+    "sidebar.compare": "巡礼対比",
 
     "map.countries": "国・地域",
     "map.select_country": "国・地域を選択してください",
@@ -13,7 +14,7 @@ export default {
     "prefecture.all_area": "{{name}}全域",
     "prefecture.city": "市・区・町・村",
 
-    "copyright.reserved": "© {{year}}。無断使用・無断転載を禁じます。",
+    "copyright.reserved": "© {{year}} Zw Gallery。無断使用・無断転載を禁じます。",
     "copyright.description": "当サイトに掲載されている写真やコンテンツの著作権は、各ページに表示された著作権者に帰属します。無断複製、転載、配布、改変、商用利用を禁じます。",
 
     "photo.switch_real": "HDR",

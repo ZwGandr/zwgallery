@@ -15,7 +15,7 @@ export default function ClusterPage() {
   const appleRef = useRef<mapkit.Map | null>(null)
 
   useEffect(() => {
-    axios.get<Response<Country[]>>(`https://${BASE_API2}/geo/countries`).then((res) => {
+    axios.get<Response<Country[]>>(`https://api.gallery.boar.ac.cn/geo/countries`).then((res) => {
       // setCountries(res.data.payload)
       setCountry(res.data.payload[0])
     })

@@ -16,6 +16,18 @@ export interface Photo {
   hdr_file?: File
 }
 
+export interface Compare{
+  id: number
+  title: string
+  description: string
+  author?: Author
+  metadata: Metadata
+  thumb_file: File
+  medium_file?: File
+  large_file?: File
+  hdr_file?: File
+}
+
 export interface Shuin {
   id: number
   place: Place
