@@ -22,7 +22,7 @@ export default function ClusterPage() {
   }, []);
 
   useEffect(() => {
-    axios.get<Response<PhotoClusterItem[]>>(`https://${BASE_API2}/photos/cluster?country_id=${country?.id}`).then((res) => {
+    axios.get<Response<PhotoClusterItem[]>>(`${BASE_API2}/photos/cluster?country_id=${country?.id}`).then((res) => {
       setClusterItems(res.data.payload)
     })
   }, [country])
