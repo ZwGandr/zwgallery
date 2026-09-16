@@ -15,4 +15,15 @@ export default defineConfig({
       },
     }),
   ],
+  server: {
+    proxy: {
+      "/api": {
+        // 本地开发时把前端的 /api 请求转发到 Spring Boot。
+        target: "http://localhost:8090",
+        changeOrigin: true,
+        // 后端控制器使用 /photos，因此转发前去掉 /api 前缀。
+        rewrite: path => path.replace(/^\/api/, ""),
+      },
+    },
+  },
 })
