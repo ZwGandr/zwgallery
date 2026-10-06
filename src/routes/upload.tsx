@@ -5,8 +5,9 @@ import { useTranslation } from "react-i18next";
 import { BASE_API2 } from "../constants/api.ts";
 import { ImageOptimizationError, optimizeUploadImage } from "../utils/optimizeUploadImage.ts";
 import { useAdminSession } from "../contexts/admin_session_context.ts";
+import { PhotoExif, readPhotoExif } from "../utils/readPhotoExif.ts";
 
-type Stage = "idle" | "compress" | "presign" | "put" | "finalize";
+type Stage = "idle" | "exif" | "compress" | "presign" | "put" | "finalize";
 type Dimensions = { width: number; height: number };
 type PresignResult = { uploadId: string; uploadUrl: string; contentType: string };
 type CreatePhotoResult = { payload: { id: number } };
@@ -26,12 +27,19 @@ function timezoneOffset(date: Date): string {
   return `${sign}${String(Math.floor(absolute / 60)).padStart(2, "0")}:${String(absolute % 60).padStart(2, "0")}`;
 }
 
+function exposureFraction(seconds: number): string {
+  if (seconds >= 1) return String(Number(seconds.toFixed(2)));
+  const denominator = Math.round(1 / seconds);
+  return denominator > 0 ? `1/${denominator}` : String(seconds);
+}
+
 export default function UploadPage() {
   const { t } = useTranslation();
   const { status: session, getCsrfToken, handleAuthError } = useAdminSession();
   const fileInput = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [originalSize, setOriginalSize] = useState<number | null>(null);
+  const [detectedExif, setDetectedExif] = useState<PhotoExif | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [dimensions, setDimensions] = useState<Dimensions | null>(null);
   const [title, setTitle] = useState("");
@@ -82,6 +90,11 @@ export default function UploadPage() {
     setPendingUploadId(null);
     setFile(null);
     setOriginalSize(null);
+    setDetectedExif(null);
+    // 新照片不能沿用上一张的拍摄时间和坐标。
+    setTakenAt(defaultLocalDateTime());
+    setLatitude("");
+    setLongitude("");
     if (!selected) return;
     if (!IMAGE_TYPES.has(selected.type)) {
       setError(t("upload.error.file_type"));
@@ -92,8 +105,16 @@ export default function UploadPage() {
       return;
     }
     setTitle(selected.name.replace(/\.[^.]+$/, "").slice(0, 200));
-    setStage("compress");
+    setStage("exif");
     try {
+      const exif = await readPhotoExif(selected);
+      setDetectedExif(exif);
+      if (exif.takenAt) setTakenAt(exif.takenAt);
+      if (exif.latitude !== undefined && exif.longitude !== undefined) {
+        setLatitude(String(exif.latitude));
+        setLongitude(String(exif.longitude));
+      }
+      setStage("compress");
       // 签名请求与 R2 PUT 均使用压缩后的文件、大小及 MIME 类型。
       const optimized = await optimizeUploadImage(selected);
       setOriginalSize(selected.size);
@@ -180,6 +201,13 @@ export default function UploadPage() {
           datetime: date.toISOString(),
           timezone: timezoneOffset(date),
           ...(hasLatitude ? { location: { latitude: lat, longitude: lon } } : {}),
+          ...(detectedExif?.iso ? { photographic_sensitivity: detectedExif.iso } : {}),
+          ...(detectedExif?.fNumber ? { f_number: detectedExif.fNumber } : {}),
+          ...(detectedExif?.exposureTime ? {
+            exposure_time: detectedExif.exposureTime,
+            exposure_time_rat: exposureFraction(detectedExif.exposureTime),
+          } : {}),
+          ...(detectedExif?.focalLength ? { focal_length: detectedExif.focalLength } : {}),
         },
       }, { withCredentials: true, headers: { "X-CSRF-TOKEN": token } });
       setPendingUploadId(null);
@@ -198,6 +226,7 @@ export default function UploadPage() {
 
   const busy = stage !== "idle";
   const stageLabel = stage === "idle" ? "" : t(`upload.stage.${stage}`);
+  const exifFound = detectedExif && Object.values(detectedExif).some(value => value !== undefined);
 
   return <div className="px-3 md:px-6 py-6 pb-12 w-full max-w-2xl mx-auto">
     <h1 className="text-3xl font-semibold mb-5">{t("upload.title")}</h1>
@@ -224,6 +253,9 @@ export default function UploadPage() {
             {t("upload.choose_file")}
           </Button>
           <p className="text-xs text-default-500">{t("upload.file_hint")}</p>
+          {detectedExif && <p className="text-xs text-default-500">
+            {t(exifFound ? "upload.exif_found" : "upload.exif_missing")}
+          </p>}
           {file && <div className="flex flex-col gap-3">
             {previewUrl && <img src={previewUrl} alt={file.name}
                                 className="max-h-72 w-full rounded-large object-contain bg-default-100"/>}
