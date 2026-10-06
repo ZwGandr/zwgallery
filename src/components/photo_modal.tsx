@@ -1,4 +1,4 @@
-import { Photo, Response } from "../models/gallery.ts";
+import { Lens, Photo, Response } from "../models/gallery.ts";
 import {
   Image,
   Modal,
@@ -23,6 +23,13 @@ export interface PhotoModalProps {
   photo: Photo
   isOpen: boolean,
   onOpenChange: (isOpen: boolean, path?: string) => void;
+}
+
+function lensDisplayName(lens: Lens): string {
+  const brand = lens.manufacture?.name ?? "";
+  // 新上传的镜头选项本身可能含品牌，避免显示成「TTArtisan TTArtisan…」。
+  return !brand || brand === "Other" || lens.model.toLowerCase().startsWith(`${brand.toLowerCase()} `)
+    ? lens.model : `${brand} ${lens.model}`;
 }
 
 export default function PhotoModal(props: PhotoModalProps) {
@@ -149,13 +156,7 @@ export default function PhotoModal(props: PhotoModalProps) {
                           <div className="h-5 w-4/5 rounded-lg bg-default-200"></div>
                         </Skeleton>
                         :
-                        (photo.metadata.lens ?
-                            photo.metadata.lens
-                              ? `${photo.metadata.lens.manufacture.name} ${photo.metadata.lens.model}`
-                              : t('unknown_lens')
-                            :
-                            t('unknown_lens')
-                        )
+                        (photo.metadata.lens ? lensDisplayName(photo.metadata.lens) : t('unknown_lens'))
                     }
                   </CardBody>
                   <Divider className='bg-default-100'/>
@@ -279,7 +280,7 @@ export default function PhotoModal(props: PhotoModalProps) {
                             </Skeleton>
                             :
                             photo.metadata.lens
-                              ? `${photo.metadata.lens.manufacture.name} ${photo.metadata.lens.model}`
+                              ? lensDisplayName(photo.metadata.lens)
                               : t('unknown_lens')
                         }
                       </CardBody>

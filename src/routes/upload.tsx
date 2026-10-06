@@ -7,6 +7,7 @@ import { ImageOptimizationError, optimizeUploadImage } from "../utils/optimizeUp
 import { useAdminSession } from "../contexts/admin_session_context.ts";
 import { PhotoExif, readPhotoExif } from "../utils/readPhotoExif.ts";
 import { dateTimeWithZone, defaultPhotoTimeZone, localDateTimeInZone, PHOTO_TIME_ZONES, PhotoTimeZone, zoneFromExifOffset } from "../utils/photoTimeZone.ts";
+import { CAMERAS, equipmentMetadata, LENSES } from "../utils/photoEquipment.ts";
 
 type Stage = "idle" | "exif" | "compress" | "presign" | "put" | "finalize";
 type Dimensions = { width: number; height: number };
@@ -36,6 +37,8 @@ export default function UploadPage() {
   const [authorName, setAuthorName] = useState("zwgandr");
   const [timeZone, setTimeZone] = useState<PhotoTimeZone>(defaultPhotoTimeZone);
   const [takenAt, setTakenAt] = useState(() => localDateTimeInZone(defaultPhotoTimeZone()));
+  const [cameraModel, setCameraModel] = useState("");
+  const [lensModel, setLensModel] = useState("");
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
   const [pendingUploadId, setPendingUploadId] = useState<string | null>(null);
@@ -85,6 +88,8 @@ export default function UploadPage() {
     setTakenAt(localDateTimeInZone(timeZone));
     setLatitude("");
     setLongitude("");
+    setCameraModel("");
+    setLensModel("");
     if (!selected) return;
     if (!IMAGE_TYPES.has(selected.type)) {
       setError(t("upload.error.file_type"));
@@ -102,6 +107,9 @@ export default function UploadPage() {
       if (exif.takenAt) setTakenAt(exif.takenAt);
       const exifZone = zoneFromExifOffset(exif.offset);
       if (exifZone) setTimeZone(exifZone);
+      if (exif.cameraModel) setCameraModel(exif.cameraModel);
+      // iPhone 默认不选择镜头；其他相机保留原图检测到的镜头型号。
+      if (exif.lensModel && !/iphone/i.test(exif.cameraModel ?? "")) setLensModel(exif.lensModel);
       if (exif.latitude !== undefined && exif.longitude !== undefined) {
         setLatitude(String(exif.latitude));
         setLongitude(String(exif.longitude));
@@ -137,6 +145,10 @@ export default function UploadPage() {
     const zonedDate = dateTimeWithZone(takenAt, timeZone);
     if (!title.trim() || !authorName.trim() || !zonedDate) {
       setError(t("upload.error.required"));
+      return;
+    }
+    if (!cameraModel || (!/iphone/i.test(cameraModel) && !lensModel)) {
+      setError(t("upload.error.equipment"));
       return;
     }
     const hasLatitude = latitude.trim() !== "";
@@ -192,6 +204,7 @@ export default function UploadPage() {
         metadata: {
           datetime: zonedDate.datetime,
           timezone: zonedDate.timezone,
+          ...equipmentMetadata(cameraModel, lensModel, detectedExif?.cameraMake),
           ...(hasLatitude ? { location: { latitude: lat, longitude: lon } } : {}),
           ...(detectedExif?.iso ? { photographic_sensitivity: detectedExif.iso } : {}),
           ...(detectedExif?.fNumber ? { f_number: detectedExif.fNumber } : {}),
@@ -219,6 +232,11 @@ export default function UploadPage() {
   const busy = stage !== "idle";
   const stageLabel = stage === "idle" ? "" : t(`upload.stage.${stage}`);
   const exifFound = detectedExif && Object.values(detectedExif).some(value => value !== undefined);
+  const isIphone = /iphone/i.test(cameraModel);
+  const cameraOptions = cameraModel && !CAMERAS.includes(cameraModel as typeof CAMERAS[number])
+    ? [cameraModel, ...CAMERAS] : [...CAMERAS];
+  const lensOptions = lensModel && !LENSES.includes(lensModel as typeof LENSES[number])
+    ? [lensModel, ...LENSES] : [...LENSES];
 
   return <div className="px-3 md:px-6 py-6 pb-12 w-full max-w-2xl mx-auto">
     <h1 className="text-3xl font-semibold mb-5">{t("upload.title")}</h1>
@@ -287,6 +305,24 @@ export default function UploadPage() {
               {t(`upload.timezone.${zone}`)}
             </SelectItem>)}
           </Select>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Select label={t("upload.camera")} selectedKeys={cameraModel ? [cameraModel] : []}
+                    placeholder={t("upload.camera_placeholder")} isRequired isDisabled={busy}
+                    onChange={event => {
+                      if (event.target.value !== cameraModel) {
+                        setCameraModel(event.target.value);
+                        setLensModel("");
+                      }
+                    }}>
+              {cameraOptions.map(model => <SelectItem key={model}>{model}</SelectItem>)}
+            </Select>
+            <Select label={t("upload.lens")} selectedKeys={lensModel ? [lensModel] : []}
+                    placeholder={isIphone ? t("upload.lens_iphone") : t("upload.lens_placeholder")}
+                    isRequired={!isIphone} isDisabled={busy || isIphone}
+                    onChange={event => setLensModel(event.target.value)}>
+              {lensOptions.map(model => <SelectItem key={model}>{model}</SelectItem>)}
+            </Select>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input label={t("upload.latitude")} type="number" step="any" value={latitude}
                    onValueChange={setLatitude} isDisabled={busy}/>
