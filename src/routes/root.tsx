@@ -1,8 +1,9 @@
 import {
-  Button, Divider, Dropdown,
-  DropdownItem, DropdownMenu, DropdownTrigger, Link,
+  Button, Chip, Divider, Dropdown,
+  DropdownItem, DropdownMenu, DropdownTrigger, Input, Link,
   Listbox,
   ListboxItem,
+  Modal, ModalBody, ModalContent, ModalFooter, ModalHeader,
   Navbar,
   NavbarBrand,
   NavbarContent,
@@ -12,7 +13,7 @@ import useDarkMode from "use-dark-mode";
 import { TbHome, TbMap, TbMoon, TbSun, TbUpload } from "react-icons/tb";
 import { Outlet, useNavigate } from "react-router-dom";
 import { LoadingContext } from "../contexts/loading";
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { MapToken, MapTokenContext, MapType } from "../contexts/map_token.tsx";
 import axios from "axios";
 import { Response } from "../models/gallery.ts";
@@ -21,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import moment from "moment";
 import gradLeft from '../assets/gradients/left.png';
 import gradRight from '../assets/gradients/right.png';
+import { useAdminSession } from "../contexts/admin_session_context.ts";
 
 const routes = [
   { route: '/', text: 'sidebar.home', icon: <TbHome size={22}/> },
@@ -57,6 +59,53 @@ export default function Root() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { t, i18n } = useTranslation()
   const navigate = useNavigate();
+  const { status, username, login, logout } = useAdminSession();
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [loginName, setLoginName] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authError, setAuthError] = useState("");
+  // 登录后才在桌面和移动导航中提供上传入口；服务端仍会独立验证权限。
+  const visibleRoutes = routes.filter(route => route.route !== '/upload' || status === 'authenticated');
+
+  function authErrorMessage(cause: unknown): string {
+    if (axios.isAxiosError(cause)) {
+      return cause.response?.status === 401 ? t('auth.error.invalid') :
+        cause.response ? t('auth.error.server', { status: cause.response.status }) : t('auth.error.network');
+    }
+    return t('auth.error.network');
+  }
+
+  async function submitLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (authBusy) return;
+    setAuthError("");
+    setAuthBusy(true);
+    try {
+      await login(loginName, loginPassword);
+      setLoginName("");
+      setLoginPassword("");
+      setLoginOpen(false);
+    } catch (cause) {
+      setAuthError(authErrorMessage(cause));
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function signOut() {
+    if (authBusy) return;
+    setAuthError("");
+    setAuthBusy(true);
+    try {
+      await logout();
+      if (window.location.pathname === '/upload') navigate('/');
+    } catch (cause) {
+      setAuthError(authErrorMessage(cause));
+    } finally {
+      setAuthBusy(false);
+    }
+  }
 
   return (
     <MapTokenContext.Provider value={{ token, setToken }}>
@@ -80,6 +129,8 @@ export default function Root() {
           <Navbar onMenuOpenChange={setIsMenuOpen} isMenuOpen={isMenuOpen}>
             <NavbarBrand>
               <Link className="font-bold text-inherit text-logo" href='/'>Zw·Gallery</Link>
+              {status === 'authenticated' && (username === 'aoi' || username === 'amadou') &&
+                <Chip size="sm" variant="flat" className="ml-2">{username}</Chip>}
             </NavbarBrand>
             <NavbarContent justify="end">
               <NavbarItem className={`${isMenuOpen ? '' : 'hidden'} sm:flex`}>
@@ -113,12 +164,19 @@ export default function Root() {
                   }
                 </Button>
               </NavbarItem>
+              <NavbarItem>
+                <Button size="sm" variant="flat" isLoading={authBusy}
+                        isDisabled={status === 'loading'}
+                        onPress={status === 'authenticated' ? signOut : () => setLoginOpen(true)}>
+                  {status === 'authenticated' ? t('auth.logout') : t('auth.login')}
+                </Button>
+              </NavbarItem>
               <NavbarMenuToggle className="sm:hidden ml-2"/>
             </NavbarContent>
 
             <NavbarMenu>
               {
-                routes.map((r) => (
+                visibleRoutes.map((r) => (
                   <NavbarMenuItem key={r.route}>
                     <Link
                       className="w-full pt-3 font-bold"
@@ -145,6 +203,34 @@ export default function Root() {
             </NavbarMenu>
           </Navbar>
 
+          <Modal isOpen={loginOpen} onOpenChange={(open) => {
+            setLoginOpen(open);
+            if (!open) {
+              setLoginPassword("");
+              setAuthError("");
+            }
+          }} placement="center">
+            <ModalContent>
+              <form onSubmit={submitLogin}>
+                <ModalHeader>{t('auth.login')}</ModalHeader>
+                <ModalBody>
+                  <Input label={t('auth.username')} value={loginName} onValueChange={setLoginName}
+                         autoComplete="username" maxLength={100} isRequired/>
+                  <Input label={t('auth.password')} type="password" value={loginPassword}
+                         onValueChange={setLoginPassword} autoComplete="current-password" isRequired/>
+                  {authError && <p className="text-danger text-sm" role="alert">{authError}</p>}
+                </ModalBody>
+                <ModalFooter>
+                  <Button color="primary" type="submit" isLoading={authBusy}>{t('auth.login')}</Button>
+                </ModalFooter>
+              </form>
+            </ModalContent>
+          </Modal>
+
+          {authError && !loginOpen && <p className="mx-auto max-w-[1024px] px-3 text-danger text-sm" role="alert">
+            {authError}
+          </p>}
+
           <div
             className="mx-auto max-w-[1024px] flex"
             style={{ minHeight: 'calc(100dvh - 4rem)' }}
@@ -152,7 +238,7 @@ export default function Root() {
             <div className="max-w-64 hidden md:flex flex-col sticky top-[5rem] h-[100%] flex-shrink-0">
               <Listbox>
                 {
-                  routes.map((r) => (
+                  visibleRoutes.map((r) => (
                     <ListboxItem
                       key={r.route}
                       href={r.route}

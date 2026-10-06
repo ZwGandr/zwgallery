@@ -4,10 +4,9 @@ import { Button, Card, CardBody, CardHeader, Chip, Input, Link, Progress, Textar
 import { useTranslation } from "react-i18next";
 import { BASE_API2 } from "../constants/api.ts";
 import { ImageOptimizationError, optimizeUploadImage } from "../utils/optimizeUploadImage.ts";
+import { useAdminSession } from "../contexts/admin_session_context.ts";
 
-type Session = "loading" | "anonymous" | "authenticated";
-type SessionResponse = { authenticated: boolean; username?: string };
-type Stage = "idle" | "login" | "compress" | "presign" | "put" | "finalize";
+type Stage = "idle" | "compress" | "presign" | "put" | "finalize";
 type Dimensions = { width: number; height: number };
 type PresignResult = { uploadId: string; uploadUrl: string; contentType: string };
 type CreatePhotoResult = { payload: { id: number } };
@@ -29,12 +28,8 @@ function timezoneOffset(date: Date): string {
 
 export default function UploadPage() {
   const { t } = useTranslation();
+  const { status: session, getCsrfToken, handleAuthError } = useAdminSession();
   const fileInput = useRef<HTMLInputElement>(null);
-  const csrfToken = useRef<string | null>(null);
-  const [session, setSession] = useState<Session>("loading");
-  const [username, setUsername] = useState("");
-  const [currentUsername, setCurrentUsername] = useState("");
-  const [password, setPassword] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [originalSize, setOriginalSize] = useState<number | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -49,24 +44,6 @@ export default function UploadPage() {
   const [publishedId, setPublishedId] = useState<number | null>(null);
   const [stage, setStage] = useState<Stage>("idle");
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    let active = true;
-    axios.get<SessionResponse>(`${BASE_API2}/admin/session`, { withCredentials: true })
-      .then(({ data }) => {
-        if (active) {
-          setSession(data.authenticated ? "authenticated" : "anonymous");
-          setCurrentUsername(data.authenticated ? data.username ?? "" : "");
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setSession("anonymous");
-          setError(t("upload.error.network"));
-        }
-      });
-    return () => { active = false; };
-  }, [t]);
 
   useEffect(() => {
     if (!file) {
@@ -129,15 +106,6 @@ export default function UploadPage() {
     }
   }
 
-  async function getCsrfToken(): Promise<string> {
-    // CSRF 与管理员会话均使用同源 /api；R2 PUT 不携带这枚 token 或 cookie。
-    const { data } = await axios.get<{ token: string }>(`${BASE_API2}/admin/csrf`, {
-      withCredentials: true,
-    });
-    csrfToken.current = data.token;
-    return data.token;
-  }
-
   function requestError(cause: unknown): string {
     if (axios.isAxiosError(cause)) {
       return cause.response
@@ -145,50 +113,6 @@ export default function UploadPage() {
         : t("upload.error.network");
     }
     return cause instanceof Error ? cause.message : t("upload.error.network");
-  }
-
-  async function login(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (stage !== "idle") return;
-    setError("");
-    setStage("login");
-    try {
-      const token = await getCsrfToken();
-      // 两位管理员分别输入自己的用户名和密码；明文密码不写入前端配置。
-      const { data } = await axios.post<SessionResponse>(`${BASE_API2}/admin/session`, {
-        username: username.trim(), password,
-      }, {
-        withCredentials: true,
-        headers: { "X-CSRF-TOKEN": token },
-      });
-      // 登录会更换会话 ID，重新获取 token 供后续写入使用。
-      await getCsrfToken();
-      setPassword("");
-      setCurrentUsername(data.username ?? username.trim());
-      setSession("authenticated");
-    } catch (cause) {
-      csrfToken.current = null;
-      setError(requestError(cause));
-    } finally {
-      setStage("idle");
-    }
-  }
-
-  async function logout() {
-    setError("");
-    try {
-      const token = csrfToken.current ?? await getCsrfToken();
-      await axios.delete(`${BASE_API2}/admin/session`, {
-        withCredentials: true,
-        headers: { "X-CSRF-TOKEN": token },
-      });
-      csrfToken.current = null;
-      setCurrentUsername("");
-      setSession("anonymous");
-    } catch (cause) {
-      csrfToken.current = null;
-      setError(requestError(cause));
-    }
   }
 
   async function upload(event: FormEvent<HTMLFormElement>) {
@@ -216,7 +140,7 @@ export default function UploadPage() {
     let uploadedToR2 = pendingUploadId !== null;
     try {
       let uploadId = pendingUploadId;
-      const token = csrfToken.current ?? await getCsrfToken();
+      const token = await getCsrfToken();
       if (!uploadId) {
         setStage("presign");
         const { data } = await axios.post<PresignResult>(`${BASE_API2}/admin/uploads/presign`, {
@@ -262,11 +186,7 @@ export default function UploadPage() {
       setPublishedId(created.payload.id);
     } catch (cause) {
       if (axios.isAxiosError(cause) && [401, 403].includes(cause.response?.status ?? 0)) {
-        csrfToken.current = null;
-        if (cause.response?.status === 401) {
-          setCurrentUsername("");
-          setSession("anonymous");
-        }
+        handleAuthError(cause.response?.status ?? 0);
       }
       setError(currentStage === "finalize" && uploadedToR2
         ? `${t("upload.error.finalize")} ${requestError(cause)}`
@@ -280,15 +200,7 @@ export default function UploadPage() {
   const stageLabel = stage === "idle" ? "" : t(`upload.stage.${stage}`);
 
   return <div className="px-3 md:px-6 py-6 pb-12 w-full max-w-2xl mx-auto">
-    <div className="flex items-center justify-between gap-3 mb-5">
-      <h1 className="text-3xl font-semibold">{t("upload.title")}</h1>
-      {session === "authenticated" && <div className="flex items-center gap-2">
-        {currentUsername && <Chip size="sm" variant="flat">
-          {t("upload.signed_in_as", { username: currentUsername })}
-        </Chip>}
-        <Button size="sm" variant="flat" onPress={logout} isDisabled={busy}>{t("upload.logout")}</Button>
-      </div>}
-    </div>
+    <h1 className="text-3xl font-semibold mb-5">{t("upload.title")}</h1>
 
     {error && <Card className="mb-5 border border-danger-300 bg-danger-50 text-danger-700" role="alert">
       <CardBody className="text-sm">{error}</CardBody>
@@ -297,16 +209,7 @@ export default function UploadPage() {
     {session === "loading" && <Progress isIndeterminate aria-label="Loading"/>}
 
     {session === "anonymous" && <Card>
-      <CardBody className="gap-4">
-        <p className="text-default-500">{t("upload.login_hint")}</p>
-        <form onSubmit={login} className="flex flex-col gap-4">
-          <Input label={t("upload.username")} value={username} onValueChange={setUsername}
-                 autoComplete="username" maxLength={100} isRequired/>
-          <Input label={t("upload.password")} type="password" value={password}
-                 onValueChange={setPassword} autoComplete="current-password" isRequired/>
-          <Button color="primary" type="submit" isLoading={busy}>{t("upload.login")}</Button>
-        </form>
-      </CardBody>
+      <CardBody className="text-default-500">{t("upload.login_required")}</CardBody>
     </Card>}
 
     {session === "authenticated" && <form onSubmit={upload} className="flex flex-col gap-5">

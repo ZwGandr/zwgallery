@@ -7,6 +7,7 @@ import Photo from "./routes/photo.tsx";
 import Prefecture from "./routes/prefecture.tsx";
 import Mapkit from "./routes/cluster.tsx";
 import Upload from "./routes/upload.tsx";
+import { AdminSessionProvider } from "./contexts/admin_session.tsx";
 import "./App.css"
 
 
@@ -15,6 +16,7 @@ function App() {
 
   return (
     <HeroUIProvider navigate={navigate}>
+      <AdminSessionProvider>
       <Routes>
         <Route path="/" element={<Root/>}>
           <Route path="" element={<Index/>}/>
@@ -28,6 +30,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace/>}/>
         </Route>
       </Routes>
+      </AdminSessionProvider>
     </HeroUIProvider>
   )
 }
