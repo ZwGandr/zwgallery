@@ -1,11 +1,12 @@
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import axios from "axios";
-import { Button, Card, CardBody, CardHeader, Chip, Input, Link, Progress, Textarea } from "@heroui/react";
+import { Button, Card, CardBody, CardHeader, Chip, Input, Link, Progress, Select, SelectItem, Textarea } from "@heroui/react";
 import { useTranslation } from "react-i18next";
 import { BASE_API2 } from "../constants/api.ts";
 import { ImageOptimizationError, optimizeUploadImage } from "../utils/optimizeUploadImage.ts";
 import { useAdminSession } from "../contexts/admin_session_context.ts";
 import { PhotoExif, readPhotoExif } from "../utils/readPhotoExif.ts";
+import { dateTimeWithZone, defaultPhotoTimeZone, localDateTimeInZone, PHOTO_TIME_ZONES, PhotoTimeZone, zoneFromExifOffset } from "../utils/photoTimeZone.ts";
 
 type Stage = "idle" | "exif" | "compress" | "presign" | "put" | "finalize";
 type Dimensions = { width: number; height: number };
@@ -14,18 +15,6 @@ type CreatePhotoResult = { payload: { id: number } };
 
 const MAX_SIZE = 30 * 1024 * 1024;
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-
-function defaultLocalDateTime(): string {
-  const now = new Date();
-  return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
-}
-
-function timezoneOffset(date: Date): string {
-  const minutes = -date.getTimezoneOffset();
-  const sign = minutes < 0 ? "-" : "+";
-  const absolute = Math.abs(minutes);
-  return `${sign}${String(Math.floor(absolute / 60)).padStart(2, "0")}:${String(absolute % 60).padStart(2, "0")}`;
-}
 
 function exposureFraction(seconds: number): string {
   if (seconds >= 1) return String(Number(seconds.toFixed(2)));
@@ -45,7 +34,8 @@ export default function UploadPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [authorName, setAuthorName] = useState("zwgandr");
-  const [takenAt, setTakenAt] = useState(defaultLocalDateTime);
+  const [timeZone, setTimeZone] = useState<PhotoTimeZone>(defaultPhotoTimeZone);
+  const [takenAt, setTakenAt] = useState(() => localDateTimeInZone(defaultPhotoTimeZone()));
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
   const [pendingUploadId, setPendingUploadId] = useState<string | null>(null);
@@ -92,7 +82,7 @@ export default function UploadPage() {
     setOriginalSize(null);
     setDetectedExif(null);
     // 新照片不能沿用上一张的拍摄时间和坐标。
-    setTakenAt(defaultLocalDateTime());
+    setTakenAt(localDateTimeInZone(timeZone));
     setLatitude("");
     setLongitude("");
     if (!selected) return;
@@ -110,6 +100,8 @@ export default function UploadPage() {
       const exif = await readPhotoExif(selected);
       setDetectedExif(exif);
       if (exif.takenAt) setTakenAt(exif.takenAt);
+      const exifZone = zoneFromExifOffset(exif.offset);
+      if (exifZone) setTimeZone(exifZone);
       if (exif.latitude !== undefined && exif.longitude !== undefined) {
         setLatitude(String(exif.latitude));
         setLongitude(String(exif.longitude));
@@ -142,8 +134,8 @@ export default function UploadPage() {
     setError("");
     setPublishedId(null);
 
-    const date = new Date(takenAt);
-    if (!title.trim() || !authorName.trim() || !takenAt || Number.isNaN(date.getTime())) {
+    const zonedDate = dateTimeWithZone(takenAt, timeZone);
+    if (!title.trim() || !authorName.trim() || !zonedDate) {
       setError(t("upload.error.required"));
       return;
     }
@@ -198,8 +190,8 @@ export default function UploadPage() {
         width: dimensions.width,
         height: dimensions.height,
         metadata: {
-          datetime: date.toISOString(),
-          timezone: timezoneOffset(date),
+          datetime: zonedDate.datetime,
+          timezone: zonedDate.timezone,
           ...(hasLatitude ? { location: { latitude: lat, longitude: lon } } : {}),
           ...(detectedExif?.iso ? { photographic_sensitivity: detectedExif.iso } : {}),
           ...(detectedExif?.fNumber ? { f_number: detectedExif.fNumber } : {}),
@@ -285,6 +277,16 @@ export default function UploadPage() {
                  maxLength={100} isRequired isDisabled={busy}/>
           <Input label={t("upload.datetime")} type="datetime-local" value={takenAt}
                  onValueChange={setTakenAt} isRequired isDisabled={busy}/>
+          <Select label={t("upload.timezone")} selectedKeys={[timeZone]}
+                  onChange={event => {
+                    const selected = event.target.value as PhotoTimeZone;
+                    if (PHOTO_TIME_ZONES.includes(selected)) setTimeZone(selected);
+                  }}
+                  isRequired isDisabled={busy}>
+            {PHOTO_TIME_ZONES.map(zone => <SelectItem key={zone}>
+              {t(`upload.timezone.${zone}`)}
+            </SelectItem>)}
+          </Select>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input label={t("upload.latitude")} type="number" step="any" value={latitude}
                    onValueChange={setLatitude} isDisabled={busy}/>
