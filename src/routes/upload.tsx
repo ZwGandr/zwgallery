@@ -3,10 +3,11 @@ import axios from "axios";
 import { Button, Card, CardBody, CardHeader, Chip, Input, Link, Progress, Textarea } from "@heroui/react";
 import { useTranslation } from "react-i18next";
 import { BASE_API2 } from "../constants/api.ts";
+import { ImageOptimizationError, optimizeUploadImage } from "../utils/optimizeUploadImage.ts";
 
 type Session = "loading" | "anonymous" | "authenticated";
 type SessionResponse = { authenticated: boolean; username?: string };
-type Stage = "idle" | "login" | "presign" | "put" | "finalize";
+type Stage = "idle" | "login" | "compress" | "presign" | "put" | "finalize";
 type Dimensions = { width: number; height: number };
 type PresignResult = { uploadId: string; uploadUrl: string; contentType: string };
 type CreatePhotoResult = { payload: { id: number } };
@@ -35,6 +36,7 @@ export default function UploadPage() {
   const [currentUsername, setCurrentUsername] = useState("");
   const [password, setPassword] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [originalSize, setOriginalSize] = useState<number | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [dimensions, setDimensions] = useState<Dimensions | null>(null);
   const [title, setTitle] = useState("");
@@ -95,13 +97,14 @@ export default function UploadPage() {
     };
   }, [file, t]);
 
-  function chooseFile(event: ChangeEvent<HTMLInputElement>) {
+  async function chooseFile(event: ChangeEvent<HTMLInputElement>) {
     const selected = event.target.files?.[0] ?? null;
     event.target.value = "";
     setError("");
     setPublishedId(null);
     setPendingUploadId(null);
     setFile(null);
+    setOriginalSize(null);
     if (!selected) return;
     if (!IMAGE_TYPES.has(selected.type)) {
       setError(t("upload.error.file_type"));
@@ -111,8 +114,19 @@ export default function UploadPage() {
       setError(t("upload.error.file_size"));
       return;
     }
-    setFile(selected);
     setTitle(selected.name.replace(/\.[^.]+$/, "").slice(0, 200));
+    setStage("compress");
+    try {
+      // 签名请求与 R2 PUT 均使用压缩后的文件、大小及 MIME 类型。
+      const optimized = await optimizeUploadImage(selected);
+      setOriginalSize(selected.size);
+      setFile(optimized);
+    } catch (cause) {
+      const reason = cause instanceof ImageOptimizationError ? cause.reason : "target";
+      setError(t(`upload.error.optimize_${reason}`));
+    } finally {
+      setStage("idle");
+    }
   }
 
   async function getCsrfToken(): Promise<string> {
@@ -312,9 +326,16 @@ export default function UploadPage() {
                                 className="max-h-72 w-full rounded-large object-contain bg-default-100"/>}
             <div className="flex flex-wrap items-center gap-2 text-sm text-default-500">
               <span className="break-all">{file.name}</span>
-              <Chip size="sm" variant="flat">{(file.size / 1024 / 1024).toFixed(1)} MiB</Chip>
+              <Chip size="sm" variant="flat">{(file.size / 1024).toFixed(0)} KiB</Chip>
               {dimensions && <Chip size="sm" variant="flat">{dimensions.width} × {dimensions.height}</Chip>}
             </div>
+            {originalSize !== null && originalSize !== file.size &&
+              <p className="text-xs text-success-600">
+                {t("upload.optimized", {
+                  before: (originalSize / 1024 / 1024).toFixed(2),
+                  after: (file.size / 1024).toFixed(0),
+                })}
+              </p>}
           </div>}
         </CardBody>
       </Card>
