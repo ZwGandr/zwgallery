@@ -25,7 +25,7 @@ function exposureFraction(seconds: number): string {
 
 export default function UploadPage() {
   const { t } = useTranslation();
-  const { status: session, getCsrfToken, handleAuthError } = useAdminSession();
+  const { status: session, username, getCsrfToken, handleAuthError } = useAdminSession();
   const fileInput = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [originalSize, setOriginalSize] = useState<number | null>(null);
@@ -34,7 +34,8 @@ export default function UploadPage() {
   const [dimensions, setDimensions] = useState<Dimensions | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [authorName, setAuthorName] = useState("zwgandr");
+  // 作者由登录账号决定；服务端也会再次按账号核定，不能仅依赖此只读字段。
+  const authorName = username === "amadou" ? "zwgandr" : username === "aoi" ? "aoi" : "";
   const [timeZone, setTimeZone] = useState<PhotoTimeZone>(defaultPhotoTimeZone);
   const [takenAt, setTakenAt] = useState(() => localDateTimeInZone(defaultPhotoTimeZone()));
   const [cameraModel, setCameraModel] = useState("");
@@ -291,7 +292,7 @@ export default function UploadPage() {
                  maxLength={200} isRequired isDisabled={busy}/>
           <Textarea label={t("upload.description")} value={description}
                     onValueChange={setDescription} maxLength={2000} isDisabled={busy}/>
-          <Input label={t("upload.author")} value={authorName} onValueChange={setAuthorName}
+          <Input label={t("upload.author")} value={authorName} isReadOnly
                  maxLength={100} isRequired isDisabled={busy}/>
           <Input label={t("upload.datetime")} type="datetime-local" value={takenAt}
                  onValueChange={setTakenAt} isRequired isDisabled={busy}/>
