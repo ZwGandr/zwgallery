@@ -14,7 +14,6 @@ import {
   Switch,
   Tooltip
 } from "@heroui/react";
-import moment from "moment/moment";
 import useMediaQuery from "../hooks/useMediaQuery.tsx";
 import ManufactureIcon from "../components/manufacture_icon.tsx";
 import DialogMap from "../components/dialog_map.tsx";
@@ -27,6 +26,7 @@ import { RxQuestionMarkCircled } from "react-icons/rx";
 import Zoom from 'react-medium-image-zoom'
 import {BASE_API2} from "../constants/api.ts";
 import PhotoExposure from "../components/photo_exposure.tsx";
+import { formatPhotoCaptureTime, photoCaptureYear } from "../utils/photoCaptureTime.ts";
 
 export default function PhotoPage() {
   const { id } = useParams()
@@ -85,7 +85,7 @@ export default function PhotoPage() {
         <CardFooter
           className="justify-between before:bg-white/10 border-white/20 border-1 overflow-hidden py-1 absolute before:rounded-xl rounded-large bottom-1 shadow-small right-1 z-10 w-auto font-normal">
           <div
-            className='text-tiny md:text-small text-white/80'>&copy; {moment(photo.metadata.datetime).year()} {photo.author?.name}</div>
+            className='text-tiny md:text-small text-white/80'>&copy; {photoCaptureYear(photo.metadata)} {photo.author?.name}</div>
         </CardFooter>
       </Card>
 
@@ -145,7 +145,7 @@ export default function PhotoPage() {
                 <div className='flex items-center text-default-500 gap-2'>
                   <IoCalendarOutline size={20}/>
                   <div>
-                    {moment(photo.metadata.datetime).utcOffset(photo.metadata.timezone).format('YYYY-MM-DD HH:mm ([GMT]Z)')}
+                    {formatPhotoCaptureTime(photo.metadata)}
                   </div>
                 </div>
 

@@ -23,16 +23,12 @@ function readImage(file: File): Promise<{ image: HTMLImageElement; url: string }
   });
 }
 
-function encodeWebp(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
-  return new Promise((resolve, reject) => {
+function encodeImage(canvas: HTMLCanvasElement, type: "image/webp" | "image/jpeg", quality: number): Promise<Blob | null> {
+  return new Promise(resolve => {
     canvas.toBlob(blob => {
-      // 不支持 WebP 的浏览器可能退回 PNG，不能用错误的扩展名上传。
-      if (!blob || blob.type !== "image/webp") {
-        reject(new ImageOptimizationError("unsupported"));
-      } else {
-        resolve(blob);
-      }
-    }, "image/webp", quality);
+      // 不支持指定格式时浏览器可能退回 PNG，必须检查实际 MIME 类型。
+      resolve(blob?.type === type && blob.size > 0 ? blob : null);
+    }, type, quality);
   });
 }
 
@@ -55,7 +51,9 @@ export async function optimizeUploadImage(file: File): Promise<File> {
     const sides = [firstSide, 2_560, 2_048, 1_600, 1_280, MIN_OUTPUT_SIDE]
       .filter((side, index, all) => side <= firstSide && all.indexOf(side) === index);
 
-    // 先尝试较大分辨率和较高 WebP 画质，只有超出目标才逐级降低。
+    let webpSupported = true;
+    let jpegSupported = true;
+    // 优先 WebP；移动浏览器无法编码 WebP 时，在本机改用 JPEG，无需外部 API。
     for (const side of sides) {
       const scale = side / longSide;
       canvas.width = Math.max(1, Math.round(width * scale));
@@ -64,14 +62,39 @@ export async function optimizeUploadImage(file: File): Promise<File> {
       context.imageSmoothingEnabled = true;
       context.imageSmoothingQuality = "high";
       context.drawImage(image, 0, 0, canvas.width, canvas.height);
-      for (const quality of QUALITIES) {
-        const blob = await encodeWebp(canvas, quality);
-        if (blob.size > 0 && blob.size < TARGET_BYTES) {
-          const name = file.name.replace(/\.[^.]+$/, "") + ".webp";
-          return new File([blob], name, { type: "image/webp", lastModified: Date.now() });
+      if (webpSupported) {
+        for (const quality of QUALITIES) {
+          const blob = await encodeImage(canvas, "image/webp", quality);
+          if (!blob) {
+            webpSupported = false;
+            break;
+          }
+          if (blob.size < TARGET_BYTES) {
+            const name = file.name.replace(/\.[^.]+$/, "") + ".webp";
+            return new File([blob], name, { type: "image/webp", lastModified: Date.now() });
+          }
+        }
+      }
+      if (!webpSupported && jpegSupported) {
+        // JPEG 不支持透明像素；先铺白底，避免 PNG 透明区域变黑。
+        context.globalCompositeOperation = "destination-over";
+        context.fillStyle = "#fff";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.globalCompositeOperation = "source-over";
+        for (const quality of QUALITIES) {
+          const blob = await encodeImage(canvas, "image/jpeg", quality);
+          if (!blob) {
+            jpegSupported = false;
+            break;
+          }
+          if (blob.size < TARGET_BYTES) {
+            const name = file.name.replace(/\.[^.]+$/, "") + ".jpg";
+            return new File([blob], name, { type: "image/jpeg", lastModified: Date.now() });
+          }
         }
       }
     }
+    if (!webpSupported && !jpegSupported) throw new ImageOptimizationError("unsupported");
     // 不牺牲到过低画质；未达到目标就明确报错，不上传超限文件。
     throw new ImageOptimizationError("target");
   } finally {

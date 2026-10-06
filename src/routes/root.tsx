@@ -11,7 +11,7 @@ import {
 } from "@heroui/react";
 import useDarkMode from "use-dark-mode";
 import { TbHome, TbMap, TbMoon, TbSun, TbUpload } from "react-icons/tb";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { LoadingContext } from "../contexts/loading";
 import { FormEvent, useEffect, useState } from "react";
 import { MapToken, MapTokenContext, MapType } from "../contexts/map_token.tsx";
@@ -59,6 +59,7 @@ export default function Root() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { t, i18n } = useTranslation()
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const { status, username, login, logout } = useAdminSession();
   const [loginOpen, setLoginOpen] = useState(false);
   const [loginName, setLoginName] = useState("");
@@ -67,6 +68,8 @@ export default function Root() {
   const [authError, setAuthError] = useState("");
   // 登录后才在桌面和移动导航中提供上传入口；服务端仍会独立验证权限。
   const visibleRoutes = routes.filter(route => route.route !== '/upload' || status === 'authenticated');
+  // 菜单高亮由当前路由决定，而不是临时焦点；点页面空白处也不会取消。
+  const activeRoute = pathname === '/upload' ? '/upload' : pathname === '/map' ? '/map' : '/';
 
   function authErrorMessage(cause: unknown): string {
     if (axios.isAxiosError(cause)) {
@@ -128,7 +131,7 @@ export default function Root() {
           className={`${darkMode.value ? 'dark' : ''} text-foreground scrollbar-hide`}>
           <Navbar onMenuOpenChange={setIsMenuOpen} isMenuOpen={isMenuOpen}>
             <NavbarBrand>
-              <Link className="font-bold text-inherit text-logo" href='/'>Zw·Gallery</Link>
+              <Link className="font-bold text-inherit text-logo" href='/'>Zw Gallery</Link>
               {status === 'authenticated' && (username === 'aoi' || username === 'amadou') &&
                 <Chip size="sm" variant="flat" className="ml-2">{username}</Chip>}
             </NavbarBrand>
@@ -179,8 +182,9 @@ export default function Root() {
                 visibleRoutes.map((r) => (
                   <NavbarMenuItem key={r.route}>
                     <Link
-                      className="w-full pt-3 font-bold"
+                      className={`w-full px-3 py-3 font-bold rounded-medium ${activeRoute === r.route ? 'bg-default-200 dark:bg-default-100/20' : ''}`}
                       size="lg"
+                      aria-current={activeRoute === r.route ? 'page' : undefined}
                       onPress={() => {
                         navigate(r.route)
                         setIsMenuOpen(false)
@@ -236,15 +240,16 @@ export default function Root() {
             style={{ minHeight: 'calc(100dvh - 4rem)' }}
           >
             <div className="max-w-64 hidden md:flex flex-col sticky top-[5rem] h-[100%] flex-shrink-0">
-              <Listbox>
+              <Listbox selectionMode="single" selectedKeys={[activeRoute]} disallowEmptySelection
+                       onAction={key => navigate(String(key))}>
                 {
                   visibleRoutes.map((r) => (
                     <ListboxItem
                       key={r.route}
-                      href={r.route}
-                      className="px-4 py-3"
+                      className={`px-4 py-3 ${activeRoute === r.route ? 'bg-default-200 dark:bg-default-100/20' : ''}`}
                       variant="flat"
                       startContent={r.icon}
+                      aria-current={activeRoute === r.route ? 'page' : undefined}
                     >
                       <p className="text-medium font-bold">{t(r.text)}</p>
                     </ListboxItem>

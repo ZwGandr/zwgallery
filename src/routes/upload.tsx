@@ -8,6 +8,7 @@ import { useAdminSession } from "../contexts/admin_session_context.ts";
 import { PhotoExif, readPhotoExif } from "../utils/readPhotoExif.ts";
 import { dateTimeWithZone, defaultPhotoTimeZone, localDateTimeInZone, PHOTO_TIME_ZONES, PhotoTimeZone, zoneFromExifOffset } from "../utils/photoTimeZone.ts";
 import { CAMERAS, equipmentMetadata, LENSES } from "../utils/photoEquipment.ts";
+import { formatExposureTime, parseExposureFields } from "../utils/photoExposure.ts";
 
 type Stage = "idle" | "exif" | "compress" | "presign" | "put" | "finalize";
 type Dimensions = { width: number; height: number };
@@ -17,18 +18,13 @@ type CreatePhotoResult = { payload: { id: number } };
 const MAX_SIZE = 30 * 1024 * 1024;
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
-function exposureFraction(seconds: number): string {
-  if (seconds >= 1) return String(Number(seconds.toFixed(2)));
-  const denominator = Math.round(1 / seconds);
-  return denominator > 0 ? `1/${denominator}` : String(seconds);
-}
-
 export default function UploadPage() {
   const { t } = useTranslation();
   const { status: session, username, getCsrfToken, handleAuthError } = useAdminSession();
   const fileInput = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [originalSize, setOriginalSize] = useState<number | null>(null);
+  const [originalType, setOriginalType] = useState<string | null>(null);
   const [detectedExif, setDetectedExif] = useState<PhotoExif | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [dimensions, setDimensions] = useState<Dimensions | null>(null);
@@ -40,6 +36,10 @@ export default function UploadPage() {
   const [takenAt, setTakenAt] = useState(() => localDateTimeInZone(defaultPhotoTimeZone()));
   const [cameraModel, setCameraModel] = useState("");
   const [lensModel, setLensModel] = useState("");
+  const [iso, setIso] = useState("");
+  const [aperture, setAperture] = useState("");
+  const [shutter, setShutter] = useState("");
+  const [focalLength, setFocalLength] = useState("");
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
   const [pendingUploadId, setPendingUploadId] = useState<string | null>(null);
@@ -84,6 +84,7 @@ export default function UploadPage() {
     setPendingUploadId(null);
     setFile(null);
     setOriginalSize(null);
+    setOriginalType(null);
     setDetectedExif(null);
     // 新照片不能沿用上一张的拍摄时间和坐标。
     setTakenAt(localDateTimeInZone(timeZone));
@@ -91,6 +92,10 @@ export default function UploadPage() {
     setLongitude("");
     setCameraModel("");
     setLensModel("");
+    setIso("");
+    setAperture("");
+    setShutter("");
+    setFocalLength("");
     if (!selected) return;
     if (!IMAGE_TYPES.has(selected.type)) {
       setError(t("upload.error.file_type"));
@@ -111,6 +116,10 @@ export default function UploadPage() {
       if (exif.cameraModel) setCameraModel(exif.cameraModel);
       // iPhone 默认不选择镜头；其他相机保留原图检测到的镜头型号。
       if (exif.lensModel && !/iphone/i.test(exif.cameraModel ?? "")) setLensModel(exif.lensModel);
+      if (exif.iso) setIso(String(exif.iso));
+      if (exif.fNumber) setAperture(String(exif.fNumber));
+      if (exif.exposureTime) setShutter(formatExposureTime(exif.exposureTime));
+      if (exif.focalLength) setFocalLength(String(exif.focalLength));
       if (exif.latitude !== undefined && exif.longitude !== undefined) {
         setLatitude(String(exif.latitude));
         setLongitude(String(exif.longitude));
@@ -119,6 +128,7 @@ export default function UploadPage() {
       // 签名请求与 R2 PUT 均使用压缩后的文件、大小及 MIME 类型。
       const optimized = await optimizeUploadImage(selected);
       setOriginalSize(selected.size);
+      setOriginalType(selected.type);
       setFile(optimized);
     } catch (cause) {
       const reason = cause instanceof ImageOptimizationError ? cause.reason : "target";
@@ -150,6 +160,11 @@ export default function UploadPage() {
     }
     if (!cameraModel || (!/iphone/i.test(cameraModel) && !lensModel)) {
       setError(t("upload.error.equipment"));
+      return;
+    }
+    const exposure = parseExposureFields(iso, aperture, shutter, focalLength);
+    if (!exposure) {
+      setError(t("upload.error.exposure"));
       return;
     }
     const hasLatitude = latitude.trim() !== "";
@@ -206,14 +221,8 @@ export default function UploadPage() {
           datetime: zonedDate.datetime,
           timezone: zonedDate.timezone,
           ...equipmentMetadata(cameraModel, lensModel, detectedExif?.cameraMake),
+          ...exposure,
           ...(hasLatitude ? { location: { latitude: lat, longitude: lon } } : {}),
-          ...(detectedExif?.iso ? { photographic_sensitivity: detectedExif.iso } : {}),
-          ...(detectedExif?.fNumber ? { f_number: detectedExif.fNumber } : {}),
-          ...(detectedExif?.exposureTime ? {
-            exposure_time: detectedExif.exposureTime,
-            exposure_time_rat: exposureFraction(detectedExif.exposureTime),
-          } : {}),
-          ...(detectedExif?.focalLength ? { focal_length: detectedExif.focalLength } : {}),
         },
       }, { withCredentials: true, headers: { "X-CSRF-TOKEN": token } });
       setPendingUploadId(null);
@@ -238,10 +247,9 @@ export default function UploadPage() {
     ? [cameraModel, ...CAMERAS] : [...CAMERAS];
   const lensOptions = lensModel && !LENSES.includes(lensModel as typeof LENSES[number])
     ? [lensModel, ...LENSES] : [...LENSES];
+  const [takenDate, takenTime = ""] = takenAt.split("T");
 
   return <div className="px-3 md:px-6 py-6 pb-12 w-full max-w-2xl mx-auto">
-    <h1 className="text-3xl font-semibold mb-5">{t("upload.title")}</h1>
-
     {error && <Card className="mb-5 border border-danger-300 bg-danger-50 text-danger-700" role="alert">
       <CardBody className="text-sm">{error}</CardBody>
     </Card>}
@@ -252,7 +260,7 @@ export default function UploadPage() {
       <CardBody className="text-default-500">{t("upload.login_required")}</CardBody>
     </Card>}
 
-    {session === "authenticated" && <form onSubmit={upload} className="flex flex-col gap-5">
+    {session === "authenticated" && <form onSubmit={upload} noValidate className="flex flex-col gap-5">
       <Card>
         <CardHeader className="font-semibold">{t("upload.choose_file")}</CardHeader>
         <CardBody className="gap-4">
@@ -282,6 +290,8 @@ export default function UploadPage() {
                   after: (file.size / 1024).toFixed(0),
                 })}
               </p>}
+            {originalType !== "image/jpeg" && file.type === "image/jpeg" && originalSize !== file.size &&
+              <p className="text-xs text-warning-600">{t("upload.jpeg_fallback_notice")}</p>}
           </div>}
         </CardBody>
       </Card>
@@ -294,8 +304,13 @@ export default function UploadPage() {
                     onValueChange={setDescription} maxLength={2000} isDisabled={busy}/>
           <Input label={t("upload.author")} value={authorName} isReadOnly
                  maxLength={100} isRequired isDisabled={busy}/>
-          <Input label={t("upload.datetime")} type="datetime-local" value={takenAt}
-                 onValueChange={setTakenAt} isRequired isDisabled={busy}/>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input label={t("upload.date")} type="date" value={takenDate}
+                   onValueChange={value => setTakenAt(`${value}T${takenTime}`)} isRequired isDisabled={busy}/>
+            <Input label={t("upload.time")} type="text" inputMode="numeric" value={takenTime}
+                   onValueChange={value => setTakenAt(`${takenDate}T${value}`)}
+                   placeholder="HH:mm" maxLength={5} autoComplete="off" isRequired isDisabled={busy}/>
+          </div>
           <Select label={t("upload.timezone")} selectedKeys={[timeZone]}
                   onChange={event => {
                     const selected = event.target.value as PhotoTimeZone;
@@ -323,6 +338,16 @@ export default function UploadPage() {
                     onChange={event => setLensModel(event.target.value)}>
               {lensOptions.map(model => <SelectItem key={model}>{model}</SelectItem>)}
             </Select>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input label={t("upload.iso")} type="number" inputMode="numeric" step="1" min="1"
+                   value={iso} onValueChange={setIso} isRequired isDisabled={busy}/>
+            <Input label={t("upload.aperture")} type="number" inputMode="decimal" step="any" min="0"
+                   value={aperture} onValueChange={setAperture} isRequired isDisabled={busy}/>
+            <Input label={t("upload.shutter")} type="text" inputMode="decimal" placeholder="1/125"
+                   value={shutter} onValueChange={setShutter} isRequired isDisabled={busy}/>
+            <Input label={t("upload.focal_length")} type="number" inputMode="decimal" step="any" min="0"
+                   value={focalLength} onValueChange={setFocalLength} isRequired isDisabled={busy}/>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input label={t("upload.latitude")} type="number" step="any" value={latitude}

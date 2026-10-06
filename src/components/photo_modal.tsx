@@ -7,7 +7,6 @@ import {
   ModalBody, Link, Spacer, Card, CardFooter, CardHeader, CardBody, Divider, Button, Skeleton
 } from "@heroui/react";
 import { IoCalendarOutline, IoLocationOutline } from "react-icons/io5";
-import moment from "moment";
 import useMediaQuery from "../hooks/useMediaQuery.tsx";
 import ManufactureIcon from "./manufacture_icon.tsx";
 import DialogMap from "./dialog_map.tsx";
@@ -18,6 +17,7 @@ import axios from "axios";
 import CameraName from "./camera_name.tsx";
 import {BASE_API2} from "../constants/api.ts";
 import PhotoExposure from "./photo_exposure.tsx";
+import { formatPhotoCaptureTime, photoCaptureYear } from "../utils/photoCaptureTime.ts";
 
 export interface PhotoModalProps {
   photo: Photo
@@ -99,7 +99,7 @@ export default function PhotoModal(props: PhotoModalProps) {
                 <CardFooter
                   className="justify-between before:bg-white/10 border-white/20 border-1 overflow-hidden py-1 absolute before:rounded-xl rounded-large bottom-1 shadow-small right-1 z-10 w-auto font-normal">
                   <div
-                    className='text-tiny md:text-small text-white/80'>&copy; {moment(photo.metadata.datetime).year()} {photo.author?.name}</div>
+                    className='text-tiny md:text-small text-white/80'>&copy; {photoCaptureYear(photo.metadata)} {photo.author?.name}</div>
                 </CardFooter>
               </Card>
             </ModalHeader>
@@ -128,7 +128,7 @@ export default function PhotoModal(props: PhotoModalProps) {
                 <div className='flex items-center text-small text-default-500 gap-1.5'>
                   <IoCalendarOutline size={18}/>
                   <div>
-                    {moment(photo.metadata.datetime).utcOffset(photo.metadata.timezone).format('YYYY-MM-DD HH:mm ([GMT]Z)')}
+                    {formatPhotoCaptureTime(photo.metadata)}
                   </div>
                 </div>
               </div>
@@ -223,7 +223,7 @@ export default function PhotoModal(props: PhotoModalProps) {
                     <CardFooter
                       className="justify-between before:bg-white/10 border-white/20 border-1 overflow-hidden py-1 absolute before:rounded-xl rounded-large bottom-1 shadow-small right-1 z-10 w-auto font-normal">
                       <div
-                        className='text-tiny md:text-small text-white/80'>&copy; {moment(photo.metadata.datetime).year()} {photo.author?.name}</div>
+                        className='text-tiny md:text-small text-white/80'>&copy; {photoCaptureYear(photo.metadata)} {photo.author?.name}</div>
                     </CardFooter>
                   </Card>
                 </div>
@@ -251,7 +251,7 @@ export default function PhotoModal(props: PhotoModalProps) {
 
                   <div className='flex items-center text-default-500 gap-1 text-small'>
                     <IoCalendarOutline size={20}/>
-                    {moment(photo.metadata.datetime).utcOffset(photo.metadata.timezone).format('YYYY-MM-DD HH:mm ([GMT]Z)')}
+                    {formatPhotoCaptureTime(photo.metadata)}
                   </div>
 
                   <Spacer y={4}/>
