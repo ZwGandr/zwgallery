@@ -26,6 +26,7 @@ import CameraName from "../components/camera_name.tsx";
 import { RxQuestionMarkCircled } from "react-icons/rx";
 import Zoom from 'react-medium-image-zoom'
 import {BASE_API2} from "../constants/api.ts";
+import PhotoExposure from "../components/photo_exposure.tsx";
 
 export default function PhotoPage() {
   const { id } = useParams()
@@ -144,7 +145,7 @@ export default function PhotoPage() {
                 <div className='flex items-center text-default-500 gap-2'>
                   <IoCalendarOutline size={20}/>
                   <div>
-                    {moment(photo.metadata.datetime).utcOffset(`+${photo.metadata.timezone.split('+')[1]}`).format('YYYY-MM-DD HH:mm ([GMT]Z)')}
+                    {moment(photo.metadata.datetime).utcOffset(photo.metadata.timezone).format('YYYY-MM-DD HH:mm ([GMT]Z)')}
                   </div>
                 </div>
 
@@ -176,15 +177,7 @@ export default function PhotoPage() {
               }
             </CardBody>
             <Divider className='bg-default-100'/>
-            <CardFooter className='py-2 flex justify-around text-default-500'>
-              <code className='text-small'>ISO {photo.metadata.photographic_sensitivity}</code>
-              <code className='text-small text-default-300 font-extralight'>|</code>
-              <code className='text-small'>ƒ{photo.metadata.f_number}</code>
-              <code className='text-small text-default-300 font-extralight'>|</code>
-              <code className='text-small'>{photo.metadata.exposure_time_rat} s</code>
-              <code className='text-small text-default-300 font-extralight'>|</code>
-              <code className='text-small'>{photo.metadata.focal_length} mm</code>
-            </CardFooter>
+              <PhotoExposure metadata={photo.metadata}/>
           </Card>
         </div>
 

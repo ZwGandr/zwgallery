@@ -17,6 +17,7 @@ import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import CameraName from "./camera_name.tsx";
 import {BASE_API2} from "../constants/api.ts";
+import PhotoExposure from "./photo_exposure.tsx";
 
 export interface PhotoModalProps {
   photo: Photo
@@ -120,7 +121,7 @@ export default function PhotoModal(props: PhotoModalProps) {
                 <div className='flex items-center text-small text-default-500 gap-1.5'>
                   <IoCalendarOutline size={18}/>
                   <div>
-                    {moment(photo.metadata.datetime).utcOffset(`+${photo.metadata.timezone.split('+')[1]}`).format('YYYY-MM-DD HH:mm ([GMT]Z)')}
+                    {moment(photo.metadata.datetime).utcOffset(photo.metadata.timezone).format('YYYY-MM-DD HH:mm ([GMT]Z)')}
                   </div>
                 </div>
               </div>
@@ -149,22 +150,16 @@ export default function PhotoModal(props: PhotoModalProps) {
                         </Skeleton>
                         :
                         (photo.metadata.lens ?
-                            `${photo.metadata.lens?.manufacture.name} ${photo.metadata.lens?.model}`
+                            photo.metadata.lens
+                              ? `${photo.metadata.lens.manufacture.name} ${photo.metadata.lens.model}`
+                              : t('unknown_lens')
                             :
                             t('unknown_lens')
                         )
                     }
                   </CardBody>
                   <Divider className='bg-default-100'/>
-                  <CardFooter className='py-2 flex justify-around text-default-500'>
-                    <code className='text-small'>ISO {photo.metadata.photographic_sensitivity}</code>
-                    <code className='text-small text-default-300 font-extralight'>|</code>
-                    <code className='text-small'>ƒ{photo.metadata.f_number}</code>
-                    <code className='text-small text-default-300 font-extralight'>|</code>
-                    <code className='text-small'>{photo.metadata.exposure_time_rat} s</code>
-                    <code className='text-small text-default-300 font-extralight'>|</code>
-                    <code className='text-small'>{photo.metadata.focal_length} mm</code>
-                  </CardFooter>
+                  <PhotoExposure metadata={photo.metadata}/>
                 </Card>
 
                 {
@@ -255,7 +250,7 @@ export default function PhotoModal(props: PhotoModalProps) {
 
                   <div className='flex items-center text-default-500 gap-1 text-small'>
                     <IoCalendarOutline size={20}/>
-                    {moment(photo.metadata.datetime).utcOffset(`+${photo.metadata.timezone.split('+')[1]}`).format('YYYY-MM-DD HH:mm ([GMT]Z)')}
+                    {moment(photo.metadata.datetime).utcOffset(photo.metadata.timezone).format('YYYY-MM-DD HH:mm ([GMT]Z)')}
                   </div>
 
                   <Spacer y={4}/>
@@ -283,19 +278,13 @@ export default function PhotoModal(props: PhotoModalProps) {
                               <div className="h-5 w-4/5 rounded-lg bg-default-200"></div>
                             </Skeleton>
                             :
-                            `${photo.metadata.lens?.manufacture.name} ${photo.metadata.lens?.model}`
+                            photo.metadata.lens
+                              ? `${photo.metadata.lens.manufacture.name} ${photo.metadata.lens.model}`
+                              : t('unknown_lens')
                         }
                       </CardBody>
                       <Divider className='bg-default-100'/>
-                      <CardFooter className='py-2 flex justify-around text-default-500'>
-                        <code className='text-small'>ISO {photo.metadata.photographic_sensitivity}</code>
-                        <code className='text-small text-default-300 font-extralight'>|</code>
-                        <code className='text-small'>ƒ{photo.metadata.f_number}</code>
-                        <code className='text-small text-default-300 font-extralight'>|</code>
-                        <code className='text-small'>{photo.metadata.exposure_time_rat} s</code>
-                        <code className='text-small text-default-300 font-extralight'>|</code>
-                        <code className='text-small'>{photo.metadata.focal_length} mm</code>
-                      </CardFooter>
+                      <PhotoExposure metadata={photo.metadata}/>
                     </Card>
 
                     {
@@ -334,7 +323,7 @@ export default function PhotoModal(props: PhotoModalProps) {
           </>
       )}
     </ModalContent>
-  }, [cityLinks, isDesktop, isPortrait, loading, photo.author?.name, photo.medium_file?.height, photo.medium_file?.url, photo.medium_file?.width, photo.metadata.camera, photo.metadata.city, photo.metadata.datetime, photo.metadata.exposure_time_rat, photo.metadata.f_number, photo.metadata.focal_length, photo.metadata.has_location, photo.metadata.lens, photo.metadata.location, photo.metadata.photographic_sensitivity, photo.metadata.place, photo.metadata.timezone, t])
+  }, [cityLinks, isDesktop, isPortrait, loading, photo.author?.name, photo.medium_file?.height, photo.medium_file?.url, photo.medium_file?.width, photo.metadata, t])
 
   return <Modal
     isOpen={props.isOpen}

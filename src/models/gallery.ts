@@ -60,11 +60,12 @@ export interface Metadata {
   has_location?: boolean
   location?: Coordinate
   datetime: string
-  exposure_time: number
-  exposure_time_rat: string
-  f_number: number
-  photographic_sensitivity: number
-  focal_length: number
+  // 手机上传可能没有 EXIF；展示页不能假设这些字段一定存在。
+  exposure_time?: number
+  exposure_time_rat?: string
+  f_number?: number
+  photographic_sensitivity?: number
+  focal_length?: number
   city?: City
   place?: Place
   timezone: string

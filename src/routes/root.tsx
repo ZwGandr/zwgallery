@@ -9,7 +9,7 @@ import {
   NavbarItem, NavbarMenu, NavbarMenuItem, NavbarMenuToggle, Spacer
 } from "@heroui/react";
 import useDarkMode from "use-dark-mode";
-import { TbHome, TbMap, TbMoon, TbSun } from "react-icons/tb";
+import { TbHome, TbMap, TbMoon, TbSun, TbUpload } from "react-icons/tb";
 import { Outlet, useNavigate } from "react-router-dom";
 import { LoadingContext } from "../contexts/loading";
 import { useEffect, useState } from "react";
@@ -27,7 +27,9 @@ import {BASE_API2} from "../constants/api.ts";
 const routes = [
   { route: '/', text: 'sidebar.home', icon: <TbHome size={22}/> },
   { route: '/map', text: 'sidebar.map', icon: <TbMap size={22}/> },
-  {route: '/compare', text: 'sidebar.compare', icon: <TbMap size={22}/>}
+  {route: '/compare', text: 'sidebar.compare', icon: <TbMap size={22}/>},
+  // 上传页与 Map、Lucky 同级；后台接口仍由服务端管理员会话保护。
+  {route: '/upload', text: 'sidebar.upload', icon: <TbUpload size={22}/>}
 ]
 
 export default function Root() {

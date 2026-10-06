@@ -7,6 +7,7 @@ import Photo from "./routes/photo.tsx";
 import Prefecture from "./routes/prefecture.tsx";
 import Mapkit from "./routes/cluster.tsx";
 import Compare from "./routes/compare.tsx";
+import Upload from "./routes/upload.tsx";
 import "./App.css"
 
 
@@ -22,6 +23,7 @@ function App() {
           <Route path="cluster" element={<Mapkit/>}/>
           <Route path="photo/:id" element={<Photo/>}/>
           <Route path="compare" element={<Compare/>}/>
+          <Route path="upload" element={<Upload/>}/>
           <Route path="prefecture/:prefectureId" element={<Prefecture/>}/>
           <Route path="prefecture/:prefectureId/city/:cityId" element={<Prefecture/>}/>
         </Route>
