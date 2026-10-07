@@ -10,13 +10,13 @@ import {
   NavbarItem, NavbarMenu, NavbarMenuItem, NavbarMenuToggle, Spacer
 } from "@heroui/react";
 import useDarkMode from "use-dark-mode";
-import { TbHome, TbMap, TbMoon, TbSun, TbUpload } from "react-icons/tb";
-import { Outlet, useNavigate } from "react-router-dom";
+import { TbEdit, TbHome, TbMap, TbMoon, TbSun, TbUpload } from "react-icons/tb";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { LoadingContext } from "../contexts/loading";
 import { FormEvent, useEffect, useState } from "react";
 import { MapToken, MapTokenContext, MapType } from "../contexts/map_token.tsx";
 import axios from "axios";
-import { Response } from "../models/gallery.ts";
+import { BASE_API2 } from "../constants/api.ts";
 import { HiOutlineTranslate } from "react-icons/hi";
 import { useTranslation } from "react-i18next";
 import moment from "moment";
@@ -28,7 +28,8 @@ const routes = [
   { route: '/', text: 'sidebar.home', icon: <TbHome size={22}/> },
   { route: '/map', text: 'sidebar.map', icon: <TbMap size={22}/> },
   // 上传页仍由服务端管理员会话保护。
-  {route: '/upload', text: 'sidebar.upload', icon: <TbUpload size={22}/>}
+  {route: '/upload', text: 'sidebar.upload', icon: <TbUpload size={22}/>},
+  {route: '/edit', text: 'sidebar.edit', icon: <TbEdit size={22}/>}
 ]
 
 export default function Root() {
@@ -39,19 +40,10 @@ export default function Root() {
   });
 
   useEffect(() => {
-    axios.get<Response<string>>(`https://api.gallery.boar.ac.cn/geo/ip`).then(async (res) => {
-      if (res.data.payload === 'CN') {
-        // mapbox
-        axios.get<Response<string>>('https://api.gallery.boar.ac.cn/mapbox/token').then((res) => {
-          setToken({ type: MapType.MapBox, token: res.data.payload })
-        })
-      } else {
-        // apple map
-        axios.get<Response<string>>('https://api.gallery.boar.ac.cn/mapkit-js/token').then((res) => {
-          setToken({ type: MapType.Apple, token: res.data.payload })
-        })
-      }
-    })
+    axios.get<{ enabled: boolean; token: string }>(`${BASE_API2}/mapbox/config`)
+      .then(({ data }) => {
+        if (data.enabled) setToken({ type: MapType.MapBox, token: data.token });
+      }).catch(() => setToken(undefined));
   }, [])
 
   const [loading, setLoading] = useState(false)
@@ -59,6 +51,7 @@ export default function Root() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { t, i18n } = useTranslation()
   const navigate = useNavigate();
+  const location = useLocation();
   const { status, username, login, logout } = useAdminSession();
   const [loginOpen, setLoginOpen] = useState(false);
   const [loginName, setLoginName] = useState("");
@@ -66,7 +59,7 @@ export default function Root() {
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState("");
   // 登录后才在桌面和移动导航中提供上传入口；服务端仍会独立验证权限。
-  const visibleRoutes = routes.filter(route => route.route !== '/upload' || status === 'authenticated');
+  const visibleRoutes = routes.filter(route => !['/upload', '/edit'].includes(route.route) || status === 'authenticated');
 
   function authErrorMessage(cause: unknown): string {
     if (axios.isAxiosError(cause)) {
@@ -99,7 +92,7 @@ export default function Root() {
     setAuthBusy(true);
     try {
       await logout();
-      if (window.location.pathname === '/upload') navigate('/');
+      if (['/upload', '/edit'].includes(window.location.pathname)) navigate('/');
     } catch (cause) {
       setAuthError(authErrorMessage(cause));
     } finally {
@@ -186,6 +179,7 @@ export default function Root() {
                         setIsMenuOpen(false)
                       }}
                       color='foreground'
+                      aria-current={location.pathname === r.route ? 'page' : undefined}
                     >
                       {r.icon}
                       <Spacer x={2}/>
@@ -243,6 +237,8 @@ export default function Root() {
                       key={r.route}
                       href={r.route}
                       className="px-4 py-3"
+                      color={location.pathname === r.route ? 'primary' : 'default'}
+                      aria-current={location.pathname === r.route ? 'page' : undefined}
                       variant="flat"
                       startContent={r.icon}
                     >

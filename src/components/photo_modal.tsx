@@ -56,20 +56,16 @@ export default function PhotoModal(props: PhotoModalProps) {
   const cityLinks = useMemo(() => <div className='flex gap-1'>
     <Link color='foreground'
           className="font-bold">{photo.metadata.city?.prefecture.country.name}</Link>
-    <Link
-      color='foreground'
-      className="font-bold cursor-pointer"
-      onPress={() => props.onOpenChange(false, `/prefecture/${photo.metadata.city?.prefecture.id}`)}
-    >
+    {photo.metadata.city?.prefecture.id != null ? <Link
+      color='foreground' className="font-bold cursor-pointer"
+      onPress={() => props.onOpenChange(false, `/prefecture/${photo.metadata.city?.prefecture.id}`)}>
       {photo.metadata.city?.prefecture.name}
-    </Link>
-    <Link
-      color='foreground'
-      className="font-bold cursor-pointer"
-      onPress={() => props.onOpenChange(false, `/prefecture/${photo.metadata.city?.prefecture.id}/city/${photo.metadata.city?.id}`)}
-    >
+    </Link> : <span className="font-bold">{photo.metadata.city?.prefecture.name}</span>}
+    {photo.metadata.city?.prefecture.id != null && photo.metadata.city?.id != null ? <Link
+      color='foreground' className="font-bold cursor-pointer"
+      onPress={() => props.onOpenChange(false, `/prefecture/${photo.metadata.city?.prefecture.id}/city/${photo.metadata.city?.id}`)}>
       {photo.metadata.city?.name}
-    </Link>
+    </Link> : <span className="font-bold">{photo.metadata.city?.name}</span>}
   </div>, [photo.metadata.city?.id, photo.metadata.city?.name, photo.metadata.city?.prefecture.country.name, photo.metadata.city?.prefecture.id, photo.metadata.city?.prefecture.name, props])
 
   const modal = useMemo(() => {

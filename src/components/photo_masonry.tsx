@@ -122,6 +122,7 @@ const MasonryCard = ({ data }: { data: Photo }) => {
           <b>
             {`${data.metadata.city.prefecture.name} ${data.metadata.city.name}`}
           </b>
+          {data.metadata.place?.name && <span className="text-default-500">{data.metadata.place.name}</span>}
           <p className="text-default-500">
             {`${data.metadata.city.prefecture.country.name}`}
           </p>

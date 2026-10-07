@@ -9,6 +9,7 @@ import { PhotoExif, readPhotoExif } from "../utils/readPhotoExif.ts";
 import { dateTimeWithZone, defaultPhotoTimeZone, localDateTimeInZone, PHOTO_TIME_ZONES, PhotoTimeZone, zoneFromExifOffset } from "../utils/photoTimeZone.ts";
 import { CAMERAS, equipmentMetadata, LENSES } from "../utils/photoEquipment.ts";
 import { formatExposureTime, parseExposureFields } from "../utils/photoExposure.ts";
+import DialogMap from "../components/dialog_map.tsx";
 
 type Stage = "idle" | "exif" | "compress" | "presign" | "put" | "finalize";
 type Dimensions = { width: number; height: number };
@@ -356,6 +357,12 @@ export default function UploadPage() {
                    onValueChange={setLongitude} isDisabled={busy}/>
           </div>
           <p className="text-xs text-default-500">{t("upload.location_hint")}</p>
+          {latitude.trim() && longitude.trim() && Number.isFinite(Number(latitude))
+            && Number.isFinite(Number(longitude)) && Math.abs(Number(latitude)) <= 90
+            && Math.abs(Number(longitude)) <= 180 &&
+            <div className="relative h-48 overflow-hidden rounded-large bg-default-100">
+              <DialogMap coordinate={{ latitude: Number(latitude), longitude: Number(longitude) }}/>
+            </div>}
         </CardBody>
       </Card>
 

@@ -1,73 +1,57 @@
 import { Coordinate } from "../models/gallery.ts";
 import { useContext, useEffect, useRef } from "react";
-import { MapTokenContext, MapType } from "../contexts/map_token.tsx";
+import { MapTokenContext } from "../contexts/map_token.tsx";
 import useDarkMode from "use-dark-mode";
-import { ColorScheme, Map as AppleMap, MapType as AppleMapType, Marker as AppleMarker } from "mapkit-react";
-import MapBox, { MapRef, Marker as MapBoxMarker } from 'react-map-gl';
+import MapBox, { MapRef, Marker } from "react-map-gl";
+import Map from "ol/Map";
+import View from "ol/View";
+import TileLayer from "ol/layer/Tile";
+import OSM from "ol/source/OSM";
+import VectorLayer from "ol/layer/Vector";
+import VectorSource from "ol/source/Vector";
+import Feature from "ol/Feature";
+import Point from "ol/geom/Point";
+import { fromLonLat } from "ol/proj";
+import { Circle, Fill, Stroke, Style } from "ol/style";
 
 export interface DialogMapProps {
   coordinate: Coordinate
 }
 
-export default function DialogMap(props: DialogMapProps) {
-  const token = useContext(MapTokenContext)
-  const appleRef = useRef<mapkit.Map | null>(null)
-  const mapboxRef = useRef<MapRef>(null)
-  const darkmode = useDarkMode()
+export default function DialogMap({ coordinate }: DialogMapProps) {
+  const token = useContext(MapTokenContext)?.token?.token;
+  const mapRef = useRef<MapRef>(null);
+  const fallbackElement = useRef<HTMLDivElement>(null);
+  const darkmode = useDarkMode();
 
   useEffect(() => {
-    if (appleRef && appleRef.current) {
-      appleRef.current.setCenterAnimated(new mapkit.Coordinate(props.coordinate.latitude, props.coordinate.longitude), true)
-    } else if (mapboxRef && mapboxRef.current) {
-      mapboxRef.current.setCenter({ lat: props.coordinate.latitude, lng: props.coordinate.longitude })
-    }
-  }, [props.coordinate.latitude, props.coordinate.longitude])
+    mapRef.current?.flyTo({ center: [coordinate.longitude, coordinate.latitude], duration: 300 });
+  }, [coordinate.latitude, coordinate.longitude]);
 
-  if (!token?.token) return;
+  useEffect(() => {
+    if (token || !fallbackElement.current) return;
+    const point = fromLonLat([coordinate.longitude, coordinate.latitude]);
+    const marker = new Feature(new Point(point));
+    marker.setStyle(new Style({ image: new Circle({ radius: 7,
+      fill: new Fill({ color: "#e43d43" }), stroke: new Stroke({ color: "white", width: 2 }) }) }));
+    const map = new Map({
+      target: fallbackElement.current,
+      layers: [new TileLayer({ source: new OSM() }),
+        new VectorLayer({ source: new VectorSource({ features: [marker] }) })],
+      view: new View({ center: point, zoom: 12 }),
+    });
+    return () => map.setTarget(undefined);
+  }, [token, coordinate.latitude, coordinate.longitude]);
 
-  return (
-    token!.token.type === MapType.Apple ?
-      <AppleMap
-        token={token!.token.token}
-        allowWheelToZoom
-        initialRegion={{
-          centerLatitude: props.coordinate.latitude,
-          centerLongitude: props.coordinate.longitude,
-          latitudeDelta: .01,
-          longitudeDelta: .01,
-        }}
-        ref={appleRef}
-        colorScheme={darkmode.value ? ColorScheme.Dark : ColorScheme.Light}
-        mapType={AppleMapType.MutedStandard}
-        showsZoomControl
-      >
-        <AppleMarker latitude={props.coordinate.latitude} longitude={props.coordinate.longitude}/>
-      </AppleMap>
-      :
-      <MapBox
-        mapboxAccessToken={token!.token.token}
-        initialViewState={{
-          longitude: props.coordinate.longitude,
-          latitude: props.coordinate.latitude,
-          zoom: 10
-        }}
-        style={{ width: '100%', height: '100%', position: 'absolute' }}
-        mapStyle={darkmode.value ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/streets-v12'}
-        ref={mapboxRef}
-        onRender={(e) => {
-          const map = e.target
-          map.getStyle()?.layers.forEach((layer) => {
-            if (layer.id.endsWith("-label")) {
-              map.setLayoutProperty(layer.id, "text-field", ["get", "name_ja"])
-            }
-          })
-        }}
-      >
-        <MapBoxMarker
-          longitude={props.coordinate.longitude}
-          latitude={props.coordinate.latitude}
-          color='red'
-        />
-      </MapBox>
-  );
+  if (!token) return <div ref={fallbackElement} className="absolute inset-0 min-h-[160px]"/>;
+
+  return <MapBox
+    mapboxAccessToken={token}
+    initialViewState={{ longitude: coordinate.longitude, latitude: coordinate.latitude, zoom: 12 }}
+    style={{ width: "100%", height: "100%", position: "absolute" }}
+    mapStyle={darkmode.value ? "mapbox://styles/mapbox/dark-v11" : "mapbox://styles/mapbox/streets-v12"}
+    ref={mapRef}
+  >
+    <Marker longitude={coordinate.longitude} latitude={coordinate.latitude} color="red"/>
+  </MapBox>;
 }

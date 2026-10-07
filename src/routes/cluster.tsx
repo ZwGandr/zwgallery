@@ -3,72 +3,79 @@ import { Country, PhotoClusterItem, Response } from "../models/gallery.ts";
 import axios from "axios";
 import { Card } from "@heroui/react";
 import useDarkMode from "use-dark-mode";
-import { Annotation, ColorScheme, Map, MapType } from "mapkit-react";
+import MapBox, { Marker } from "react-map-gl";
 import { MapTokenContext } from "../contexts/map_token.tsx";
 import { BASE_API2 } from "../constants/api.ts";
+import Map from "ol/Map";
+import View from "ol/View";
+import TileLayer from "ol/layer/Tile";
+import OSM from "ol/source/OSM";
+import VectorLayer from "ol/layer/Vector";
+import VectorSource from "ol/source/Vector";
+import Feature from "ol/Feature";
+import Point from "ol/geom/Point";
+import { fromLonLat } from "ol/proj";
+import { Circle, Fill, Stroke, Style } from "ol/style";
+
+function FallbackClusterMap({ country, items }: { country: Country; items: PhotoClusterItem[] }) {
+  const element = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!element.current) return;
+    const markers = items.filter(item => item.coordinate).map(item => {
+      const feature = new Feature(new Point(fromLonLat([
+        item.coordinate!.longitude, item.coordinate!.latitude,
+      ])));
+      feature.set("photoId", item.id);
+      feature.setStyle(new Style({ image: new Circle({ radius: 9,
+        fill: new Fill({ color: "#e43d43" }), stroke: new Stroke({ color: "white", width: 2 }) }) }));
+      return feature;
+    });
+    const map = new Map({ target: element.current,
+      layers: [new TileLayer({ source: new OSM() }),
+        new VectorLayer({ source: new VectorSource({ features: markers }) })],
+      view: new View({ center: fromLonLat(country.center), zoom: country.zoom[0] }),
+    });
+    map.on("click", event => {
+      const feature = map.forEachFeatureAtPixel(event.pixel, candidate => candidate);
+      if (feature) window.location.href = `/photo/${feature.get("photoId")}`;
+    });
+    map.on("pointermove", event => {
+      if (element.current) element.current.style.cursor = map.hasFeatureAtPixel(event.pixel) ? "pointer" : "";
+    });
+    return () => map.setTarget(undefined);
+  }, [country, items]);
+  return <div ref={element} className="h-full w-full"/>;
+}
 
 export default function ClusterPage() {
-  const darkmode = useDarkMode()
-  const [clusterItems, setClusterItems] = useState<PhotoClusterItem[]>([])
-  const [country, setCountry] = useState<Country>()
-  const token = useContext(MapTokenContext)
-  const appleRef = useRef<mapkit.Map | null>(null)
+  const darkmode = useDarkMode();
+  const [items, setItems] = useState<PhotoClusterItem[]>([]);
+  const [country, setCountry] = useState<Country>();
+  const token = useContext(MapTokenContext)?.token?.token;
 
   useEffect(() => {
-    axios.get<Response<Country[]>>(`https://api.gallery.boar.ac.cn/geo/countries`).then((res) => {
-      // setCountries(res.data.payload)
-      setCountry(res.data.payload[0])
-    })
+    axios.get<Response<Country[]>>(`${BASE_API2}/geo/countries`).then(({ data }) => setCountry(data.payload[0]));
   }, []);
 
   useEffect(() => {
-    axios.get<Response<PhotoClusterItem[]>>(`${BASE_API2}/photos/cluster?country_id=${country?.id}`).then((res) => {
-      setClusterItems(res.data.payload)
-    })
-  }, [country])
+    if (!country) return;
+    axios.get<Response<PhotoClusterItem[]>>(`${BASE_API2}/photos/cluster`, {
+      params: { country_id: country.id },
+    }).then(({ data }) => setItems(data.payload));
+  }, [country]);
 
-  if (!token?.token) return;
-  if (!country) return;
-
-  return <div className='scrollbar-hide box-border relative' style={{ height: 'calc(100dvh - 4rem)' }}>
-    <Map
-      token={token!.token.token}
-      allowWheelToZoom
-      ref={appleRef}
-      colorScheme={darkmode.value ? ColorScheme.Dark : ColorScheme.Light}
-      mapType={MapType.MutedStandard}
-      showsZoomControl
-      initialRegion={{
-        centerLatitude: (country?.extent[3] + country?.extent[1]) / 2,
-        centerLongitude: (country?.extent[2] + country?.extent[0]) / 2,
-        latitudeDelta: country?.extent[3] - country?.extent[1],
-        longitudeDelta: country?.extent[2] - country?.extent[0],
-      }}
-    >
-      {
-        clusterItems.map((item) => {
-          if (!item.coordinate) return null;
-
-          return <Annotation
-            key={item.id}
-            latitude={item.coordinate.latitude}
-            longitude={item.coordinate.longitude}
-            clusteringIdentifier='1'
-          >
-            <Card
-              radius='sm'
-              className='border-none'
-            >
-              <img
-                className='object-cover w-[72px] h-[72px]'
-                src={item.thumb_file.url}
-                width={item.thumb_file.width}
-                height={item.thumb_file.height}
-              />
-            </Card>
-          </Annotation>
-        })
-      }
-    </Map>
-  </div>
+  if (!country) return null;
+  return <div className="relative h-[calc(100dvh-4rem)]">
+    {token ? <MapBox mapboxAccessToken={token}
+      initialViewState={{ longitude: country.center[0], latitude: country.center[1], zoom: country.zoom[0] }}
+      mapStyle={darkmode.value ? "mapbox://styles/mapbox/dark-v11" : "mapbox://styles/mapbox/streets-v12"}>
+      {items.filter(item => item.coordinate).map(item => <Marker key={item.id}
+        longitude={item.coordinate!.longitude} latitude={item.coordinate!.latitude}>
+        <a href={`/photo/${item.id}`} aria-label={`Photo ${item.id}`}>
+          <Card radius="sm" className="border-none"><img className="h-[56px] w-[56px] object-cover"
+            src={item.thumb_file.url} alt=""/></Card>
+        </a>
+      </Marker>)}
+    </MapBox> : <FallbackClusterMap country={country} items={items}/>}
+  </div>;
 }
