@@ -51,7 +51,6 @@ export default function EditPage() {
   const [jsonText, setJsonText] = useState("");
   const [jsonError, setJsonError] = useState("");
   const [numericInputs, setNumericInputs] = useState<Record<string, string>>({});
-  const [movingId, setMovingId] = useState<number | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -105,17 +104,6 @@ export default function EditPage() {
     });
   }
 
-  function changeUrl(id: number, value: string) {
-    updateRow(id, draft => {
-      const oldUrl = display(nested(draft, ["large_file", "url"]));
-      let next = editPath(draft, ["large_file", "url"], value);
-      for (const name of ["thumb_file", "medium_file", "hdr_file"]) {
-        if (nested(next, [name, "url"]) === oldUrl) next = editPath(next, [name, "url"], value);
-      }
-      return next;
-    });
-  }
-
   async function loadMore() {
     if (!nextId || loading || changed.length) return;
     setLoading(true);
@@ -133,32 +121,6 @@ export default function EditPage() {
       setError(t("edit.load_error"));
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function movePhoto(id: number, direction: "up" | "down") {
-    if (movingId !== null || saving || deleting || changed.length) return;
-    const index = rows.findIndex(row => row.id === id);
-    const neighbor = index + (direction === "up" ? -1 : 1);
-    if (index < 0 || neighbor < 0 || neighbor >= rows.length) return;
-    setMovingId(id);
-    setError("");
-    setMessage("");
-    try {
-      const token = await getCsrfToken();
-      await axios.post(`${BASE_API2}/admin/photos/${id}/move`, { direction }, {
-        withCredentials: true, headers: { "X-CSRF-TOKEN": token },
-      });
-      const reordered = [...rows];
-      [reordered[index], reordered[neighbor]] = [reordered[neighbor], reordered[index]];
-      setRows(reordered);
-      if (nextId !== null) setNextId(reordered[reordered.length - 1].id);
-      setMessage(t("edit.moved"));
-    } catch (cause) {
-      if (axios.isAxiosError(cause)) handleAuthError(cause.response?.status ?? 0);
-      setError(t("edit.move_error"));
-    } finally {
-      setMovingId(null);
     }
   }
 
@@ -262,15 +224,14 @@ export default function EditPage() {
           <h1 className="text-xl font-semibold">{t("edit.title")}</h1>
           <p className="text-xs text-default-500">{t("edit.summary", { count: rows.length, changed: changed.length })}</p>
         </div>
-        <Button color="primary" isLoading={saving} isDisabled={!changed.length || loading || movingId !== null || invalidNumber} onPress={save}>
+        <Button color="primary" isLoading={saving} isDisabled={!changed.length || loading || invalidNumber} onPress={save}>
           {t("edit.save")}
         </Button>
       </div>
-      <p className="mb-4 max-w-2xl text-xs text-default-500">{t("edit.help")}</p>
       {message && <p role="status" className="mb-3 text-sm text-success">{message}</p>}
       {error && <p role="alert" className="mb-3 text-sm text-danger">{error}</p>}
       <div className="space-y-3">
-        {rows.map((row, index) => {
+        {rows.map(row => {
           const dirty = JSON.stringify(row.draft) !== row.original;
           const expanded = expandedId === row.id;
           const preview = display(nested(row.draft, ["thumb_file", "url"]));
@@ -285,14 +246,10 @@ export default function EditPage() {
                 <div className="mt-1 truncate text-xs text-default-500">{display(nested(row.draft, ["metadata", "datetime"]))}</div>
               </div>
               <div className="flex w-full gap-2 sm:w-auto">
-                <Button size="sm" variant="flat" isDisabled={index === 0 || movingId !== null || loading || saving || deleting || changed.length > 0}
-                  onPress={() => movePhoto(row.id, "up")}>{t("edit.move_up")}</Button>
-                <Button size="sm" variant="flat" isDisabled={index === rows.length - 1 || movingId !== null || loading || saving || deleting || changed.length > 0}
-                  onPress={() => movePhoto(row.id, "down")}>{t("edit.move_down")}</Button>
                 <Button size="sm" variant={expanded ? "solid" : "flat"} color={expanded ? "primary" : "default"}
                   aria-expanded={expanded} aria-controls={`edit-fields-${row.id}`}
                   onPress={() => setExpandedId(expanded ? null : row.id)}>{t(expanded ? "edit.collapse" : "edit.expand")}</Button>
-                <Button size="sm" variant="flat" color="danger" isDisabled={saving || deleting || movingId !== null || dirty}
+                <Button size="sm" variant="flat" color="danger" isDisabled={saving || deleting || dirty}
                   onPress={() => setDeleteId(row.id)}>{t("edit.delete")}</Button>
               </div>
             </div>
@@ -320,10 +277,6 @@ export default function EditPage() {
                 {textField(row, "edit.field.region", ["metadata", "city", "prefecture", "name"])}
                 {textField(row, "edit.field.city", ["metadata", "city", "name"])}
                 {textField(row, "edit.field.place", ["metadata", "place", "name"])}</div>
-              <div className="space-y-2 sm:col-span-2"><h2 className="text-sm font-medium">{t("edit.image_url")}</h2>
-                <label className="block text-[11px] text-default-500">{t("edit.field.url")}
-                  <input className={inputClass} value={display(nested(row.draft, ["large_file", "url"]))}
-                    onChange={event => changeUrl(row.id, event.target.value)} disabled={saving}/></label></div>
               <div className="flex flex-wrap items-end gap-2 sm:col-span-2 lg:col-span-3 xl:col-span-4">
                 <Button size="sm" variant="flat" onPress={() => openAdvanced(row)} isDisabled={saving}>{t("edit.json")}</Button>
               </div>
@@ -333,7 +286,7 @@ export default function EditPage() {
       </div>
       {loading && <Progress isIndeterminate aria-label={t("edit.loading")} className="mt-4"/>}
       {nextId !== null && <div className="mt-4 text-center"><Button variant="flat" onPress={loadMore}
-        isDisabled={loading || saving || movingId !== null || changed.length > 0}>{t("edit.load_more")}</Button>
+        isDisabled={loading || saving || changed.length > 0}>{t("edit.load_more")}</Button>
         {changed.length > 0 && <p className="mt-1 text-xs text-default-500">{t("edit.save_before_more")}</p>}
       </div>}
       <Modal isOpen={advancedId !== null} onOpenChange={open => { if (!open) setAdvancedId(null); }} size="3xl" scrollBehavior="inside">
