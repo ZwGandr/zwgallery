@@ -51,7 +51,6 @@ export default function EditPage() {
   const [jsonText, setJsonText] = useState("");
   const [jsonError, setJsonError] = useState("");
   const [numericInputs, setNumericInputs] = useState<Record<string, string>>({});
-  const [geocodingId, setGeocodingId] = useState<number | null>(null);
   const [movingId, setMovingId] = useState<number | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -115,35 +114,6 @@ export default function EditPage() {
       }
       return next;
     });
-  }
-
-  async function reverseAddress(row: EditRow) {
-    const latitude = Number(nested(row.draft, ["metadata", "location", "latitude"]));
-    const longitude = Number(nested(row.draft, ["metadata", "location", "longitude"]));
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
-    setGeocodingId(row.id);
-    setError("");
-    try {
-      const { data } = await axios.get<{ payload: JsonObject }>(`${BASE_API2}/admin/geo/reverse`, {
-        params: { latitude, longitude }, withCredentials: true,
-      });
-      updateRow(row.id, draft => {
-        const next = clone(draft);
-        const metadata = next.metadata as JsonObject;
-        if (data.payload.city) metadata.city = data.payload.city;
-        if (data.payload.place) metadata.place = data.payload.place;
-        metadata.has_location = true;
-        return next;
-      });
-      setMessage(t("edit.address_ready"));
-    } catch (cause) {
-      if (axios.isAxiosError(cause)) {
-        handleAuthError(cause.response?.status ?? 0);
-        setError(t(cause.response?.status === 503 ? "edit.mapbox_missing" : "edit.address_error"));
-      } else setError(t("edit.address_error"));
-    } finally {
-      setGeocodingId(null);
-    }
   }
 
   async function loadMore() {
@@ -356,11 +326,6 @@ export default function EditPage() {
                     onChange={event => changeUrl(row.id, event.target.value)} disabled={saving}/></label></div>
               <div className="flex flex-wrap items-end gap-2 sm:col-span-2 lg:col-span-3 xl:col-span-4">
                 <Button size="sm" variant="flat" onPress={() => openAdvanced(row)} isDisabled={saving}>{t("edit.json")}</Button>
-                <Button size="sm" variant="flat" isLoading={geocodingId === row.id}
-                  isDisabled={saving || geocodingId !== null || invalidNumber
-                    || typeof nested(row.draft, ["metadata", "location", "latitude"]) !== "number"
-                    || typeof nested(row.draft, ["metadata", "location", "longitude"]) !== "number"}
-                  onPress={() => reverseAddress(row)}>{t("edit.reverse")}</Button>
               </div>
             </div>}
           </section>;
