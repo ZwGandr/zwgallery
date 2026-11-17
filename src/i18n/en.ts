@@ -109,6 +109,13 @@ export default {
     "map.countries": "Country / Region",
     "map.select_country": "Select a country or region",
 
+    "map.back": "Back to map",
+    "map.select_region": "Select a region",
+    "map.loading": "Loading map",
+    "map.boundary_error": "Could not load the map boundaries.",
+    "map.photo_error": "Could not load the gallery photos.",
+    "map.region_error": "This region could not be found.",
+    "map.empty": "There are no photos in this region yet.",
     "unknown_lens": "Unknown lens",
 
     "prefecture.all_area": "All of {{name}}",

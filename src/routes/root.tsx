@@ -52,6 +52,7 @@ export default function Root() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate();
   const location = useLocation();
+  const isMap = location.pathname === '/map' || location.pathname.startsWith('/map/');
   const { status, username, login, logout } = useAdminSession();
   const [loginOpen, setLoginOpen] = useState(false);
   const [loginName, setLoginName] = useState("");
@@ -119,7 +120,8 @@ export default function Root() {
 
         <main
           className={`${darkMode.value ? 'dark' : ''} text-foreground scrollbar-hide`}>
-          <Navbar onMenuOpenChange={setIsMenuOpen} isMenuOpen={isMenuOpen}>
+          <Navbar className={isMap ? 'gallery-map-header' : undefined}
+                  onMenuOpenChange={setIsMenuOpen} isMenuOpen={isMenuOpen}>
             <NavbarBrand>
               <Link className="font-bold text-inherit text-logo" href='/'>Zw Gallery</Link>
               {status === 'authenticated' && (username === 'aoi' || username === 'amadou') &&
@@ -226,10 +228,10 @@ export default function Root() {
           </p>}
 
           <div
-            className="mx-auto max-w-[1024px] flex"
+            className={`mx-auto max-w-[1024px] flex${isMap ? ' gallery-map-layout' : ''}`}
             style={{ minHeight: 'calc(100dvh - 4rem)' }}
           >
-            <div className="max-w-64 hidden md:flex flex-col sticky top-[5rem] h-[100%] flex-shrink-0">
+            <div className={`max-w-64 hidden md:flex flex-col sticky top-[5rem] h-[100%] flex-shrink-0${isMap ? ' gallery-map-sidebar' : ''}`}>
               <Listbox>
                 {
                   visibleRoutes.map((r) => (
@@ -237,8 +239,8 @@ export default function Root() {
                       key={r.route}
                       href={r.route}
                       className="px-4 py-3"
-                      color={location.pathname === r.route ? 'primary' : 'default'}
-                      aria-current={location.pathname === r.route ? 'page' : undefined}
+                      color={location.pathname === r.route || (isMap && r.route === '/map') ? 'primary' : 'default'}
+                      aria-current={location.pathname === r.route || (isMap && r.route === '/map') ? 'page' : undefined}
                       variant="flat"
                       startContent={r.icon}
                     >

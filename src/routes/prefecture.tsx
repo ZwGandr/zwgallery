@@ -1,63 +1,83 @@
-import PhotoMasonry from "../components/photo_masonry.tsx";
-import { useNavigate, useParams } from "react-router-dom";
-import { useEffect, useState } from "react";
-import axios from "axios";
-import { Prefecture, Response } from "../models/gallery.ts";
-import { Chip, Select, SelectItem } from "@heroui/react";
+import { Button, Chip, Select, SelectItem, Spinner } from "@heroui/react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { BASE_API2 } from "../constants/api.ts";
+import { TbArrowLeft } from "react-icons/tb";
+import { Link, useNavigate } from "react-router-dom";
+import PhotoMasonry from "../components/photo_masonry";
+import type { Photo } from "../models/gallery";
+import { mapCountryUrl, type MapCountry } from "../utils/galleryMapData";
 
-export default function PrefecturePage() {
-  const params = useParams()
-  const [prefecture, setPrefecture] = useState<Prefecture>()
-  const { t } = useTranslation()
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    axios.get<Response<Prefecture>>(`${BASE_API2}/geo/prefecture`, {
-      params: {
-        id: params.prefectureId,
-        with_cities: true
-      }
-    }).then((res) => {
-      setPrefecture(res.data.payload)
-    })
-  }, [params.prefectureId]);
-
-  if (!prefecture) return;
-
-  return <div className='px-2 pt-[1rem] pb-12'>
-    <div className='text-5xl mb-4 md:mb-6 ml-2 pt-2'>
-      {prefecture.name}
-    </div>
-
-    <div className='mb-8 md:mb-12'>
-      <Select label={t('prefecture.city')} selectedKeys={[params.cityId ?? '0']} onChange={(e) => {
-        if (e.target.value === '0') {
-          navigate(`/prefecture/${params.prefectureId}`)
-        } else {
-          navigate(`/prefecture/${params.prefectureId}/city/${e.target.value}`)
-        }
-      }}>
-        {[{
-          id: 0,
-          name: t('prefecture.all_area', { name: prefecture.name }),
-          photos_count: prefecture.cities.reduce((a, o) => a + o.photos_count, 0)
-        }, ...prefecture.cities].map((c) => (
-          <SelectItem key={c.id} textValue={c.name} endContent={<Chip>{c.photos_count}</Chip>}>
-            {c.name}
-          </SelectItem>
-        ))}
-      </Select>
-    </div>
-
-    <div>
-      {
-        !params.cityId ?
-          <PhotoMasonry prefectureId={params.prefectureId} key={'0'}/>
-          :
-          <PhotoMasonry cityId={params.cityId} key={params.cityId}/>
-      }
-    </div>
-  </div>
+interface PrefecturePageProps {
+  country: MapCountry;
+  regionId: string;
+  cityId?: string;
+  name?: string;
+  photos?: Photo[];
+  error?: string;
 }
+
+const allCities = '__all__';
+const emptyPhotos: Photo[] = [];
+const cityKey = (city: NonNullable<Photo['metadata']['city']>) =>
+  city.id == null ? city.name.trim() : String(city.id);
+
+export default function PrefecturePage({ country, regionId, cityId, name, photos, error }: PrefecturePageProps) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const cities = useMemo(() => {
+    const citiesById = new Map<string, { name: string; photos: Photo[] }>();
+    for (const photo of photos ?? emptyPhotos) {
+      const city = photo.metadata?.city;
+      if (!city?.name?.trim()) continue;
+      const id = cityKey(city);
+      const group = citiesById.get(id);
+      if (group) group.photos.push(photo);
+      else citiesById.set(id, { name: city.name, photos: [photo] });
+    }
+    return citiesById;
+  }, [photos]);
+
+  const city = cityId ? cities.get(cityId) : undefined;
+  const visiblePhotos = city?.photos ?? photos;
+  const path = `/map/prefecture/${regionId}`;
+
+  return (
+    <section className="gallery-region">
+      <Button as={Link} to={mapCountryUrl(country)} size="sm" variant="flat"
+        startContent={<TbArrowLeft size={16}/>}>
+        {t('map.back')}
+      </Button>
+      {name && <h1 className="gallery-region-title">{name}</h1>}
+      {error ? <p role="status">{t(error)}</p> : !name || !visiblePhotos ? (
+        <Spinner aria-label={t('map.loading')}/>
+      ) : (
+        <>
+          {cities.size > 0 && (
+            <Select
+              className="gallery-region-city"
+              label={t('prefecture.city')}
+              disallowEmptySelection
+              selectedKeys={[city && cityId ? cityId : allCities]}
+              onChange={event => {
+                const selected = event.target.value;
+                if (selected) navigate(selected === allCities ? path : `${path}/city/${encodeURIComponent(selected)}`);
+              }}
+            >
+              <SelectItem key={allCities} endContent={<Chip size="sm">{photos?.length ?? 0}</Chip>}>
+                {t('prefecture.all_area', { name })}
+              </SelectItem>
+              {Array.from(cities, ([id, entry]) => (
+                <SelectItem key={id} textValue={entry.name} endContent={<Chip size="sm">{entry.photos.length}</Chip>}>
+                  {entry.name}
+                </SelectItem>
+              ))}
+            </Select>
+          )}
+          {visiblePhotos.length ? <PhotoMasonry key={cityId ?? regionId} preloadedPhotos={visiblePhotos}/> :
+            <p className="gallery-region-empty">{t('map.empty')}</p>}
+        </>
+      )}
+    </section>
+  );
+}
+

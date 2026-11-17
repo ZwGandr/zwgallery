@@ -126,6 +126,13 @@ export default {
     "map.countries": "国家 / 地区",
     "map.select_country": "请选择一个国家或地区",
 
+    "map.back": "返回地图",
+    "map.select_region": "选择地区",
+    "map.loading": "正在加载地图",
+    "map.boundary_error": "无法加载地图边界。",
+    "map.photo_error": "无法加载照片。",
+    "map.region_error": "找不到该地区。",
+    "map.empty": "这个地区还没有照片。",
     "unknown_lens": "未知镜头",
 
     "prefecture.all_area": "{{name}}全域",

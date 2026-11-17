@@ -16,7 +16,7 @@ import { useNavigate } from "react-router-dom";
 import { BASE_API2 } from "../constants/api.ts";
 
 
-export default function PhotoMasonry(props: { prefectureId?: string, cityId?: string }) {
+export default function PhotoMasonry(props: { preloadedPhotos?: Photo[] }) {
   const [photos, setPhotos] = useState<Photo[]>([])
   const isDesktop = useMediaQuery('(min-width: 960px)');
   const loadedIndex = useRef<{ startIndex: number, stopIndex: number }[]>([]);
@@ -33,23 +33,19 @@ export default function PhotoMasonry(props: { prefectureId?: string, cityId?: st
     columnCount: isDesktop ? 3 : 2,
   });
   const { scrollTop, isScrolling } = useScroller(offset);
-  const query = useMemo(() => ({
-    prefecture_id: props.prefectureId && props.prefectureId !== '0' ? props.prefectureId : undefined,
-    city_id: props.cityId && props.cityId !== '0' ? props.cityId : undefined,
-  }), [props.cityId, props.prefectureId])
-
   useEffect(() => {
+    if (props.preloadedPhotos) return;
     axios.get<Response<Photo[]>>(`${ BASE_API2 }/photos/all`, {
       params: {
-        ...query,
         page_size: 20
       }
     }).then(res => {
       setPhotos(res.data.payload)
     })
-  }, [query])
+  }, [props.preloadedPhotos])
 
   const maybeLoadMore = useInfiniteLoader((startIndex, stopIndex, items) => {
+    if (props.preloadedPhotos || !items.length) return;
     if (loadedIndex.current.find((e) => e.startIndex === startIndex && e.stopIndex === stopIndex)) {
       return;
     }
@@ -58,7 +54,6 @@ export default function PhotoMasonry(props: { prefectureId?: string, cityId?: st
     const last_id = (items[items.length - 1] as Photo).id
     axios.get<Response<Photo[]>>(`${ BASE_API2 }/photos/all`, {
       params: {
-        ...query,
         page_size: stopIndex - startIndex,
         last_id: last_id,
       }
@@ -77,7 +72,7 @@ export default function PhotoMasonry(props: { prefectureId?: string, cityId?: st
     isScrolling,
     height,
     containerRef,
-    items: photos,
+    items: props.preloadedPhotos ?? photos,
     overscanBy: 3,
     itemHeightEstimate: 0,
     onRender: maybeLoadMore,
