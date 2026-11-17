@@ -1,337 +1,174 @@
 import { Lens, Photo, Response } from "../models/gallery.ts";
 import {
-  Image,
-  Modal,
-  ModalContent,
-  ModalHeader,
-  ModalBody, Link, Spacer, Card, CardFooter, CardHeader, CardBody, Divider, Button, Skeleton
+  Card, CardBody, CardFooter, CardHeader, Divider, Image, Link,
+  Modal, ModalBody, ModalContent, ModalHeader, Skeleton,
 } from "@heroui/react";
 import { IoCalendarOutline, IoLocationOutline } from "react-icons/io5";
+import { useTranslation } from "react-i18next";
+import { useEffect, useState } from "react";
+import axios from "axios";
 import useMediaQuery from "../hooks/useMediaQuery.tsx";
 import ManufactureIcon from "./manufacture_icon.tsx";
-import DialogMap from "./dialog_map.tsx";
-import { MdOutlineOpenInNew } from "react-icons/md";
-import { useTranslation } from "react-i18next";
-import { useEffect, useMemo, useState } from "react";
-import axios from "axios";
 import CameraName from "./camera_name.tsx";
-import {BASE_API2} from "../constants/api.ts";
+import { BASE_API2 } from "../constants/api.ts";
 import PhotoExposure from "./photo_exposure.tsx";
 import { formatPhotoCaptureTime, photoCaptureYear } from "../utils/photoCaptureTime.ts";
 
 export interface PhotoModalProps {
-  photo: Photo
-  isOpen: boolean,
+  photo: Photo;
+  isOpen: boolean;
   onOpenChange: (isOpen: boolean, path?: string) => void;
 }
 
 function lensDisplayName(lens: Lens): string {
   const brand = lens.manufacture?.name ?? "";
-  // 新上传的镜头选项本身可能含品牌，避免显示成「TTArtisan TTArtisan…」。
   return !brand || brand === "Other" || lens.model.toLowerCase().startsWith(`${brand.toLowerCase()} `)
     ? lens.model : `${brand} ${lens.model}`;
 }
 
 export default function PhotoModal(props: PhotoModalProps) {
-  const isDesktop = useMediaQuery('(min-width: 960px)');
-  const { t } = useTranslation()
-  const [photo, setPhoto] = useState(props.photo)
-  const [loading, setLoading] = useState(true)
+  const { t } = useTranslation();
+  const isDesktop = useMediaQuery("(min-width: 960px)");
+  const [details, setDetails] = useState<Photo>();
+  const [loading, setLoading] = useState(true);
+  const photoId = props.photo.id;
 
   useEffect(() => {
-    if (props.isOpen) {
-      setLoading(true)
-      setTimeout(() => {
-        axios.get<Response<Photo>>(`${BASE_API2}/photos/get?id=${props.photo.id}`).then(res => {
-          setPhoto(res.data.payload)
-          setLoading(false)
-        })
-      }, 100)
-    }
-  }, [props.isOpen, props.photo.id])
+    if (!props.isOpen) return;
 
-  // if (!photo.medium_file) return null;
-  const isPortrait = photo.thumb_file.width <= photo.thumb_file.height;
+    const request = new AbortController();
+    setLoading(true);
+    axios.get<Response<Photo>>(`${BASE_API2}/photos/get`, {
+      params: { id: photoId },
+      signal: request.signal,
+    }).then(({ data }) => {
+      if (data.payload) setDetails(data.payload);
+    }).catch(() => {
+      // The gallery thumbnail remains available when the details request fails.
+    }).finally(() => {
+      if (!request.signal.aborted) setLoading(false);
+    });
 
-  const cityLinks = useMemo(() => <div className='flex gap-1'>
-    <Link color='foreground'
-          className="font-bold">{photo.metadata.city?.prefecture.country.name}</Link>
-    {photo.metadata.city?.prefecture.id != null ? <Link
-      color='foreground' className="font-bold cursor-pointer"
-      onPress={() => props.onOpenChange(false, `/prefecture/${photo.metadata.city?.prefecture.id}`)}>
-      {photo.metadata.city?.prefecture.name}
-    </Link> : <span className="font-bold">{photo.metadata.city?.prefecture.name}</span>}
-    {photo.metadata.city?.prefecture.id != null && photo.metadata.city?.id != null ? <Link
-      color='foreground' className="font-bold cursor-pointer"
-      onPress={() => props.onOpenChange(false, `/prefecture/${photo.metadata.city?.prefecture.id}/city/${photo.metadata.city?.id}`)}>
-      {photo.metadata.city?.name}
-    </Link> : <span className="font-bold">{photo.metadata.city?.name}</span>}
-  </div>, [photo.metadata.city?.id, photo.metadata.city?.name, photo.metadata.city?.prefecture.country.name, photo.metadata.city?.prefecture.id, photo.metadata.city?.prefecture.name, props])
+    return () => request.abort();
+  }, [props.isOpen, photoId]);
 
-  const modal = useMemo(() => {
-    return <ModalContent className='overflow-hidden'>
-      {() => (
-        (!isDesktop) || (!isPortrait) ?
-          <>
-            <ModalHeader className="p-0 flex flex-col gap-1">
-              <Card
-                isFooterBlurred
-                radius="lg"
-                className="border-none"
-              >
-                <Image
-                  isBlurred
-                  draggable={false}
-                  classNames={{
-                    img: 'pointer-events-none',
-                    blurredImg: 'pointer-events-none'
-                  }}
-                  className="object-contain"
-                  src={photo.medium_file?.url}
-                  width={photo.medium_file?.width}
-                  height={photo.medium_file?.height}
-                  style={{ maxHeight: isDesktop ? 'calc(100dvh - 20rem)' : 'calc(100dvh - 18rem)', height: 'auto' }}
-                />
-                <CardFooter
-                  className="justify-between before:bg-white/10 border-white/20 border-1 overflow-hidden py-1 absolute before:rounded-xl rounded-large bottom-1 shadow-small right-1 z-10 w-auto font-normal">
-                  <div
-                    className='text-tiny md:text-small text-white/80'>&copy; {photoCaptureYear(photo.metadata)} {photo.author?.name}</div>
-                </CardFooter>
-              </Card>
-            </ModalHeader>
-            <ModalBody className="p-4">
-              <div className='flex flex-wrap items-center justify-between'>
-                {
-                  photo.metadata.city ?
-                    <div className='flex items-center text-default-500 gap-1'>
-                      <IoLocationOutline className='flex-shrink-0' size={20}/>
-                      <div className='flex flex-wrap gap-x-3'>
-                        {cityLinks}
-                        {
-                          photo.metadata.place ?
-                            <div className='flex items-center'>
-                              <Link color='foreground'>{photo.metadata.place.name}</Link>
-                            </div>
-                            :
-                            null
-                        }
-                      </div>
+  const photo = details?.id === photoId ? details : props.photo;
+  const image = photo.medium_file ?? photo.thumb_file;
+  const ratio = image.width > 0 && image.height > 0
+    ? image.width / image.height : 1;
+  const sideBySide = isDesktop && ratio <= 1;
+
+  // Cap the image width using its aspect ratio and the available height.
+  const imageMaxHeight = sideBySide ? "max(1px, 100dvh - 8rem)" : "max(40dvh, 100dvh - 18rem)";
+  const intrinsicWidth = image.width > 0 ? `${image.width}px` : "56rem";
+  const imageWidth = `min(${intrinsicWidth}, calc(${imageMaxHeight} * ${ratio}))`;
+  const modalWidth = sideBySide
+    ? `calc(22rem + min(30rem, ${imageWidth}))`
+    : `max(22rem, ${imageWidth})`;
+  const { city } = photo.metadata;
+
+  return (
+    <Modal
+      isOpen={props.isOpen}
+      onOpenChange={props.onOpenChange}
+      backdrop="blur"
+      size="4xl"
+      scrollBehavior="inside"
+      classNames={{ closeButton: "z-20" }}
+    >
+      <ModalContent
+        className="max-h-[calc(100dvh-0.5rem)] overflow-hidden sm:my-4 sm:max-h-[calc(100dvh-2rem)] min-[960px]:my-16 min-[960px]:max-h-[calc(100dvh-8rem)]"
+        style={{ width: modalWidth }}
+      >
+        <ModalHeader className="sr-only">#{photo.id}</ModalHeader>
+        <ModalBody className="block min-h-0 p-0">
+          <div className={sideBySide ? "grid grid-cols-[minmax(0,1fr)_22rem]" : undefined}>
+            <Card
+              isFooterBlurred
+              radius="lg"
+              className="mx-auto w-full self-start border-none"
+              style={sideBySide ? undefined : { width: `min(100%, ${imageWidth})` }}
+            >
+              <Image
+                isBlurred
+                draggable={false}
+                classNames={{
+                  img: "pointer-events-none",
+                  blurredImg: "pointer-events-none opacity-40",
+                }}
+                className="block h-auto w-full object-contain"
+                style={{ height: "auto" }}
+                src={image.url}
+                width={image.width}
+                height={image.height}
+                alt={photo.title ?? ""}
+              />
+              <CardFooter className="absolute bottom-1 right-1 z-10 w-auto overflow-hidden rounded-large border-1 border-white/20 py-1 font-normal shadow-small before:rounded-xl before:bg-white/10">
+                <div className="text-tiny text-white/80 md:text-small">
+                  &copy; {photoCaptureYear(photo.metadata)} {photo.author?.name}
+                </div>
+              </CardFooter>
+            </Card>
+
+            <div className={sideBySide ? "flex min-w-0 flex-col justify-end gap-3 p-6" : "min-w-0 space-y-3 p-4"}>
+              <div className={sideBySide ? "space-y-1" : "flex flex-wrap items-center justify-between gap-2"}>
+                {city && (
+                  <div className="flex items-center gap-1 text-default-500">
+                    <IoLocationOutline className="shrink-0" size={20}/>
+                    <div className="flex flex-wrap gap-x-2 font-bold">
+                      <span className="text-foreground">{city.prefecture.country.name}</span>
+                      {city.prefecture.id != null ? (
+                        <Link
+                          color="foreground"
+                          className="cursor-pointer"
+                          onPress={() => props.onOpenChange(false, `/prefecture/${city.prefecture.id}`)}
+                        >
+                          {city.prefecture.name}
+                        </Link>
+                      ) : <span>{city.prefecture.name}</span>}
+                      {city.prefecture.id != null && city.id != null ? (
+                        <Link
+                          color="foreground"
+                          className="cursor-pointer"
+                          onPress={() => props.onOpenChange(false, `/prefecture/${city.prefecture.id}/city/${city.id}`)}
+                        >
+                          {city.name}
+                        </Link>
+                      ) : <span>{city.name}</span>}
                     </div>
-                    :
-                    null
-                }
-
-                <div className='flex items-center text-small text-default-500 gap-1.5'>
-                  <IoCalendarOutline size={18}/>
-                  <div>
-                    {formatPhotoCaptureTime(photo.metadata)}
                   </div>
+                )}
+                <div className="flex items-center gap-1.5 text-small text-default-500">
+                  <IoCalendarOutline className="shrink-0" size={18}/>
+                  {formatPhotoCaptureTime(photo.metadata)}
                 </div>
               </div>
 
-              <div className='gap-4 grid grid-cols-1 md:grid-cols-2'>
-                <Card className='overflow-visible'>
-                  <CardHeader className='text-small font-semibold bg-default-100 py-2'>
-                    {
-                      loading ?
-                        <Skeleton className="w-2/5 rounded-lg">
-                          <div className="h-5 w-2/5 rounded-lg bg-default-200"></div>
-                        </Skeleton>
-                        :
-                        <>
-                          <ManufactureIcon
-                            name={photo.metadata.camera?.manufacture.name}/>
-                          <CameraName camera={photo.metadata.camera}/>
-                        </>
-                    }
-                  </CardHeader>
-                  <CardBody className='text-small text-default-500 py-2 overflow-y-visible'>
-                    {
-                      loading ?
-                        <Skeleton className="w-4/5 rounded-lg">
-                          <div className="h-5 w-4/5 rounded-lg bg-default-200"></div>
-                        </Skeleton>
-                        :
-                        (photo.metadata.lens ? lensDisplayName(photo.metadata.lens) : t('unknown_lens'))
-                    }
-                  </CardBody>
-                  <Divider className='bg-default-100'/>
-                  <PhotoExposure metadata={photo.metadata}/>
-                </Card>
-
-                {
-                  (photo.metadata.has_location || photo.metadata.location) ?
-                    (
-                      photo.metadata.location ?
-                        <Card className='overflow-hidden min-h-[109px] md:min-h-0' isFooterBlurred>
-                          <DialogMap coordinate={photo.metadata.location}/>
-                          <CardFooter
-                            className="justify-between before:bg-white/10 border-white/20 border-1 overflow-hidden p-0 absolute before:rounded-xl rounded-large bottom-1 shadow-small right-1 z-10 w-auto font-normal">
-                            <Button
-                              className="text-tiny text-white bg-black/20"
-                              variant="flat"
-                              color="default"
-                              radius="lg"
-                              size="sm"
-                              isIconOnly
-                              onPress={() => {
-                                window.open(`https://maps.google.com/?q=${photo.metadata.location?.latitude},${photo.metadata.location?.longitude}`)
-                              }}
-                            >
-                              <MdOutlineOpenInNew size={16}/>
-                            </Button>
-                          </CardFooter>
-                        </Card>
-                        :
-                        <div className='min-h-[109px]'/>
-                    )
-                    :
-                    null
-                }
-              </div>
-            </ModalBody>
-          </>
-          :
-          <>
-            <ModalHeader className="p-0 flex flex-col gap-1"/>
-            <ModalBody className="p-0 overflow-hidden">
-              <div className='flex overflow-hidden'>
-                <div className='w-[54%]'>
-                  <Card
-                    isFooterBlurred
-                    radius="lg"
-                    className="border-none h-[100%]"
-                  >
-                    <Image
-                      isBlurred
-                      classNames={{
-                        wrapper: 'h-[100%]',
-                        zoomedWrapper: 'h-[100%]',
-                        blurredImg: 'h-[100%] pointer-events-none',
-                        img: 'pointer-events-none',
-                      }}
-                      className="object-contain h-[100%]"
-                      src={photo.medium_file?.url}
-                      width={photo.medium_file?.width}
-                      height={photo.medium_file?.height}
-                      style={{ height: 'auto' }}
-                    />
-                    <CardFooter
-                      className="justify-between before:bg-white/10 border-white/20 border-1 overflow-hidden py-1 absolute before:rounded-xl rounded-large bottom-1 shadow-small right-1 z-10 w-auto font-normal">
-                      <div
-                        className='text-tiny md:text-small text-white/80'>&copy; {photoCaptureYear(photo.metadata)} {photo.author?.name}</div>
-                    </CardFooter>
-                  </Card>
-                </div>
-
-                <div className='w-[46%] p-6 flex flex-col gap-1 justify-end'>
-                  {
-                    photo.metadata.city ?
-                      <div className='flex items-center text-default-500 gap-1'>
-                        <IoLocationOutline size={20}/>
-                        <div className='flex gap-x-3 flex-wrap'>
-                          {cityLinks}
-                          {
-                            photo.metadata.place ?
-                              <div className='flex items-center'>
-                                <Link color='foreground'>{photo.metadata.place.name}</Link>
-                              </div>
-                              :
-                              null
-                          }
-                        </div>
-                      </div>
-                      :
-                      null
-                  }
-
-                  <div className='flex items-center text-default-500 gap-1 text-small'>
-                    <IoCalendarOutline size={20}/>
-                    {formatPhotoCaptureTime(photo.metadata)}
-                  </div>
-
-                  <Spacer y={4}/>
-
-                  <div className='gap-4 grid grid-cols-1'>
-                    <Card className='overflow-visible'>
-                      <CardHeader className='text-small font-semibold bg-default-100 py-2'>
-                        {
-                          loading ?
-                            <Skeleton className="w-2/5 rounded-lg">
-                              <div className="h-5 w-2/5 rounded-lg bg-default-200"></div>
-                            </Skeleton>
-                            :
-                            <>
-                              <ManufactureIcon
-                                name={photo.metadata.camera?.manufacture.name}/>
-                              <CameraName camera={photo.metadata.camera}/>
-                            </>
-                        }
-                      </CardHeader>
-                      <CardBody className='text-small text-default-500 py-2 overflow-y-visible'>
-                        {
-                          loading ?
-                            <Skeleton className="w-4/5 rounded-lg">
-                              <div className="h-5 w-4/5 rounded-lg bg-default-200"></div>
-                            </Skeleton>
-                            :
-                            photo.metadata.lens
-                              ? lensDisplayName(photo.metadata.lens)
-                              : t('unknown_lens')
-                        }
-                      </CardBody>
-                      <Divider className='bg-default-100'/>
-                      <PhotoExposure metadata={photo.metadata}/>
-                    </Card>
-
-                    {
-                      (photo.metadata.has_location || photo.metadata.location) ?
-                        (
-                          photo.metadata.location ?
-                            <Card className='overflow-hidden min-h-[256px]' isFooterBlurred>
-                              <DialogMap coordinate={photo.metadata.location}/>
-                              <CardFooter
-                                className="justify-between before:bg-white/10 border-white/20 border-1 overflow-hidden p-0 absolute before:rounded-xl rounded-large bottom-1 shadow-small right-1 z-10 w-auto font-normal">
-                                <Button
-                                  className="text-tiny text-white bg-black/20"
-                                  variant="flat"
-                                  color="default"
-                                  radius="lg"
-                                  size="sm"
-                                  isIconOnly
-                                  onPress={() => {
-                                    window.open(`https://maps.google.com/?q=${photo.metadata.location?.latitude},${photo.metadata.location?.longitude}`)
-                                  }}
-                                >
-                                  <MdOutlineOpenInNew size={16}/>
-                                </Button>
-                              </CardFooter>
-                            </Card>
-                            :
-                            <div className='min-h-[256px]'/>
-                        )
-                        :
-                        null
-                    }
-                  </div>
-                </div>
-              </div>
-            </ModalBody>
-          </>
-      )}
-    </ModalContent>
-  }, [cityLinks, isDesktop, isPortrait, loading, photo.author?.name, photo.medium_file?.height, photo.medium_file?.url, photo.medium_file?.width, photo.metadata, t])
-
-  return <Modal
-    isOpen={props.isOpen}
-    onOpenChange={props.onOpenChange}
-    backdrop='blur'
-    size='4xl'
-    scrollBehavior='inside'
-    classNames={{
-      closeButton: 'z-20'
-    }}
-  >
-    {modal}
-  </Modal>;
+              <Card className="overflow-visible">
+                <CardHeader className="bg-default-100 py-2 text-small font-semibold">
+                  {loading ? (
+                    <Skeleton className="h-5 w-2/5 rounded-lg"/>
+                  ) : (
+                    <>
+                      <ManufactureIcon name={photo.metadata.camera?.manufacture.name}/>
+                      <CameraName camera={photo.metadata.camera}/>
+                    </>
+                  )}
+                </CardHeader>
+                <CardBody className="overflow-y-visible py-2 text-small text-default-500">
+                  {loading ? (
+                    <Skeleton className="h-5 w-4/5 rounded-lg"/>
+                  ) : (
+                    photo.metadata.lens ? lensDisplayName(photo.metadata.lens) : t("unknown_lens")
+                  )}
+                </CardBody>
+                <Divider className="bg-default-100"/>
+                <PhotoExposure metadata={photo.metadata}/>
+              </Card>
+            </div>
+          </div>
+        </ModalBody>
+      </ModalContent>
+    </Modal>
+  );
 }

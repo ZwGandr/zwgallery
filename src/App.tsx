@@ -5,7 +5,6 @@ import Index from "./routes";
 import Map from "./routes/map_openlayers.tsx";
 import Photo from "./routes/photo.tsx";
 import Prefecture from "./routes/prefecture.tsx";
-import ClusterPage from "./routes/cluster.tsx";
 import Upload from "./routes/upload.tsx";
 import EditPage from "./routes/edit.tsx";
 import { AdminSessionProvider } from "./contexts/admin_session.tsx";
@@ -22,7 +21,7 @@ function App() {
         <Route path="/" element={<Root/>}>
           <Route path="" element={<Index/>}/>
           <Route path="map" element={<Map/>}/>
-          <Route path="cluster" element={<ClusterPage/>}/>
+          <Route path="cluster" element={<Navigate to="/map" replace/>}/>
           <Route path="photo/:id" element={<Photo/>}/>
           <Route path="upload" element={<Upload/>}/>
           <Route path="edit" element={<EditPage/>}/>

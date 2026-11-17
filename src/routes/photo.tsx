@@ -3,7 +3,6 @@ import { useEffect, useState, cloneElement, MouseEvent } from "react";
 import { Photo, Response } from "../models/gallery.ts";
 import axios from "axios";
 import {
-  Button,
   Card,
   CardBody,
   CardFooter,
@@ -16,8 +15,6 @@ import {
 } from "@heroui/react";
 import useMediaQuery from "../hooks/useMediaQuery.tsx";
 import ManufactureIcon from "../components/manufacture_icon.tsx";
-import DialogMap from "../components/dialog_map.tsx";
-import { MdOutlineOpenInNew } from "react-icons/md";
 import { IoCalendarOutline, IoLocationOutline } from "react-icons/io5";
 import { PiMountains } from "react-icons/pi";
 import { useTranslation } from "react-i18next";
@@ -71,10 +68,7 @@ export default function PhotoPage() {
             isBlurred
             className={`object-contain ${isDesktop ? 'max-h-[32rem]' : ''}`}
             draggable={false}
-            classNames={{
-              // img: 'pointer-events-none',
-              // blurredImg: 'pointer-events-none'
-            }}
+            classNames={{ blurredImg: 'opacity-40' }}
             onContextMenu={(e) => e.preventDefault()}
             src={showHDR ? photo.hdr_file!.url : photo.large_file!.url}
             width={showHDR ? photo.hdr_file!.width : photo.large_file!.width}
@@ -110,7 +104,7 @@ export default function PhotoPage() {
           null
       }
 
-      <div className='gap-4 grid grid-cols-1 md:grid-cols-2 mt-4 pb-4'>
+      <div className='mt-4 pb-4'>
         <div>
           <Card>
             <CardBody>
@@ -133,14 +127,6 @@ export default function PhotoPage() {
                               {photo.metadata.city.name}</Link> :
                             <span className="font-bold">{photo.metadata.city.name}</span>}
                         </div>
-                        {
-                          photo.metadata.place ?
-                            <div className='flex items-center'>
-                              <Link color='foreground'>{photo.metadata.place.name}</Link>
-                            </div>
-                            :
-                            null
-                        }
                       </div>
                     </div>
                     :
@@ -186,28 +172,6 @@ export default function PhotoPage() {
           </Card>
         </div>
 
-        {
-          photo.metadata.location &&
-            <Card className='overflow-hidden min-h-[200px] md:min-h-0' isFooterBlurred>
-                <DialogMap coordinate={photo.metadata.location}/>
-                <CardFooter
-                    className="justify-between before:bg-white/10 border-white/20 border-1 overflow-hidden p-0 absolute before:rounded-xl rounded-large bottom-1 shadow-small right-1 z-10 w-auto font-normal">
-                    <Button
-                        className="text-tiny text-white bg-black/20"
-                        variant="flat"
-                        color="default"
-                        radius="lg"
-                        size="sm"
-                        isIconOnly
-                        onPress={() => {
-                          window.open(`https://maps.google.com/?q=${photo.metadata.location!.latitude},${photo.metadata.location!.longitude}`)
-                        }}
-                    >
-                        <MdOutlineOpenInNew size={16}/>
-                    </Button>
-                </CardFooter>
-            </Card>
-        }
       </div>
     </div>
   );

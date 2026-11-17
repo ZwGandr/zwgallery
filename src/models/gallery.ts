@@ -30,13 +30,6 @@ export interface Shuin {
   genre: string
 }
 
-export interface PhotoClusterItem {
-  id: number
-  coordinate?: Coordinate
-  thumb_file: File
-  clustering_identifier: string
-}
-
 export interface Author {
   id: number
   name: string
