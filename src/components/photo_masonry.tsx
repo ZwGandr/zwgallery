@@ -10,6 +10,7 @@ import {
   useInfiniteLoader,
   useMasonry,
   usePositioner,
+  useResizeObserver,
   useScroller
 } from "masonic";
 import { useNavigate } from "react-router-dom";
@@ -32,6 +33,7 @@ export default function PhotoMasonry(props: { preloadedPhotos?: Photo[] }) {
     columnGutter: 8,
     columnCount: isDesktop ? 3 : 2,
   });
+  const resizeObserver = useResizeObserver(positioner);
   const { scrollTop, isScrolling } = useScroller(offset);
   useEffect(() => {
     if (props.preloadedPhotos) return;
@@ -68,13 +70,13 @@ export default function PhotoMasonry(props: { preloadedPhotos?: Photo[] }) {
 
   return useMasonry({
     positioner,
+    resizeObserver,
     scrollTop,
     isScrolling,
     height,
     containerRef,
     items: props.preloadedPhotos ?? photos,
     overscanBy: 3,
-    itemHeightEstimate: 0,
     onRender: maybeLoadMore,
     render: MasonryCard,
     itemKey: (item) => item.id,
