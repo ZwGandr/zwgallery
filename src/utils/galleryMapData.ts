@@ -40,10 +40,15 @@ export function mapCountryUrl(country: MapCountry) {
 export async function loadRegions(country: MapCountry, signal: AbortSignal) {
   const { data } = await axios.get(boundaryFiles[country], { signal });
   const features = new GeoJSON().readFeatures(data, { featureProjection: 'EPSG:3857' });
-  return features.filter((feature): feature is RegionFeature => {
+  const regions = features.filter((feature): feature is RegionFeature => {
     const geometry = feature.getGeometry();
     return feature.get('name') && (geometry instanceof Polygon || geometry instanceof MultiPolygon);
   });
+  for (const feature of regions) {
+    if (country === 'JPN') feature.setId(feature.get('id'));
+  }
+  if (!regions.length) throw new Error('No region boundaries found');
+  return regions;
 }
 
 export async function loadMapPhotos(signal: AbortSignal): Promise<Photo[]> {
@@ -53,7 +58,7 @@ export async function loadMapPhotos(signal: AbortSignal): Promise<Photo[]> {
   for (;;) {
     const { data: { payload } } = await axios.get<Response<Photo[]>>(`${BASE_API2}/photos/all`, {
       signal,
-      params: { page_size: pageSize, last_id: photos.at(-1)?.id },
+      params: { page_size: pageSize, last_id: photos[photos.length - 1]?.id },
     });
     const next = payload.filter(photo => !seen.has(photo.id));
     for (const photo of next) {

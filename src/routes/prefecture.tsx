@@ -57,20 +57,21 @@ export default function PrefecturePage({ country, regionId, cityId, name, photos
               className="gallery-region-city"
               label={t('prefecture.city')}
               disallowEmptySelection
+              items={[
+                { id: allCities, label: t('prefecture.all_area', { name }), count: photos?.length ?? 0 },
+                ...Array.from(cities, ([id, entry]) => ({ id, label: entry.name, count: entry.photos.length })),
+              ]}
               selectedKeys={[city && cityId ? cityId : allCities]}
               onChange={event => {
                 const selected = event.target.value;
                 if (selected) navigate(selected === allCities ? path : `${path}/city/${encodeURIComponent(selected)}`);
               }}
             >
-              <SelectItem key={allCities} endContent={<Chip size="sm">{photos?.length ?? 0}</Chip>}>
-                {t('prefecture.all_area', { name })}
-              </SelectItem>
-              {Array.from(cities, ([id, entry]) => (
-                <SelectItem key={id} textValue={entry.name} endContent={<Chip size="sm">{entry.photos.length}</Chip>}>
-                  {entry.name}
+              {option => (
+                <SelectItem key={option.id} textValue={option.label} endContent={<Chip size="sm">{option.count}</Chip>}>
+                  {option.label}
                 </SelectItem>
-              ))}
+              )}
             </Select>
           )}
           {visiblePhotos.length ? <PhotoMasonry key={cityId ?? regionId} preloadedPhotos={visiblePhotos}/> :

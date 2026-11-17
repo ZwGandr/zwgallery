@@ -6,7 +6,7 @@ import type { FeatureLike } from "ol/Feature";
 import type { Extent } from "ol/extent";
 import { isEmpty } from "ol/extent";
 import { MultiPolygon, Point, Polygon } from "ol/geom";
-import Map from "ol/Map";
+import OlMap from "ol/Map";
 import View from "ol/View";
 import VectorLayer from "ol/layer/Vector";
 import { transformExtent } from "ol/proj";
@@ -88,21 +88,22 @@ function useMapRegions(country: MapCountry) {
 export default function MapPage() {
   const regionRoute = useMatch('/map/prefecture/:prefectureId');
   const cityRoute = useMatch('/map/prefecture/:prefectureId/city/:cityId');
-  const { prefectureId, cityId } = (cityRoute ?? regionRoute)?.params ?? {};
+  const prefectureId = cityRoute?.params.prefectureId ?? regionRoute?.params.prefectureId;
+  const cityId = cityRoute?.params.cityId;
   const navigate = useNavigate();
   const [query] = useSearchParams();
   const country = prefectureId ? regionCountry(prefectureId) : parseMapCountry(query.get('country'));
   const { t } = useTranslation();
   const target = useRef<HTMLDivElement>(null);
-  const map = useRef<Map | null>(null);
+  const map = useRef<OlMap | null>(null);
   const layer = useRef<VectorLayer<VectorSource<RegionFeature>> | null>(null);
-  const hovered = useRef<FeatureLike>();
-  const overview = useRef<{ country: MapCountry; center: number[]; resolution: number }>();
-  const camera = useRef<{ country: MapCountry; regionId?: string }>();
+  const hovered = useRef<FeatureLike>(undefined);
+  const overview = useRef<{ country: MapCountry; center: number[]; resolution: number }>(undefined);
+  const camera = useRef<{ country: MapCountry; regionId?: string }>(undefined);
   const [photos, setPhotos] = useState<Photo[]>();
   const [photosFailed, setPhotosFailed] = useState(false);
   const { regions, boundariesFailed } = useMapRegions(country);
-  const groups = useMemo(() => regions && photos ? groupRegionPhotos(country, regions, photos) : new globalThis.Map(),
+  const groups = useMemo(() => regions && photos ? groupRegionPhotos(country, regions, photos) : new Map<string, Photo[]>(),
     [country, photos, regions]);
   const selected = regions?.find(feature => String(feature.getId()) === prefectureId);
   const reducedMotion = useMemo(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches, []);
@@ -121,7 +122,7 @@ export default function MapPage() {
     const element = target.current;
     if (!element) return;
     const vectorLayer = new VectorLayer({ source: new VectorSource<RegionFeature>(), declutter: true });
-    const instance = new Map({
+    const instance = new OlMap({
       target: element,
       layers: [vectorLayer],
       view: new View({ center: [0, 0], zoom: 3, minZoom: 2, maxZoom: 12 }),
@@ -174,7 +175,7 @@ export default function MapPage() {
     const vectorLayer = layer.current;
     if (!vectorLayer || !regions) return;
     const max = Math.max(1, ...Array.from(groups.values(), photos => photos.length));
-    const styles = new globalThis.Map(regions.map(feature => [
+    const styles = new Map(regions.map(feature => [
       feature, regionStyles(feature, groups.get(String(feature.getId()))?.length ?? 0, max),
     ]));
     const root = document.documentElement;

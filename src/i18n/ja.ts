@@ -107,6 +107,13 @@ export default {
     "upload.error.finalize": "画像は R2 に保存されましたが、写真は未登録です。30 分以内に再試行してください。",
 
     "map.countries": "国・地域",
+    "map.back": "地図に戻る",
+    "map.select_region": "地域を選択",
+    "map.loading": "地図を読み込み中",
+    "map.boundary_error": "境界データを読み込めませんでした。",
+    "map.photo_error": "写真を読み込めませんでした。",
+    "map.region_error": "地域が見つかりませんでした。",
+    "map.empty": "この地域の写真はまだありません。",
     "map.select_country": "国・地域を選択してください",
 
     "unknown_lens": "レンズ不明",
