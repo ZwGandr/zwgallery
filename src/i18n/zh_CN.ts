@@ -139,6 +139,7 @@ export default {
     "prefecture.city": "市区町村",
 
     "copyright.reserved": "版权所有 © {{year}} Zw Gallery。保留一切权利。",
+    "photo.open_map": "在 Google 地图中打开",
     "photo.switch_real": "HDR",
     "photo.hdr_tooltip": "并非所有终端都支持高动态范围（HDR）的显示。",
 

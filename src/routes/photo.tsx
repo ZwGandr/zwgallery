@@ -3,6 +3,7 @@ import { useEffect, useState, cloneElement, MouseEvent } from "react";
 import { Photo, Response } from "../models/gallery.ts";
 import axios from "axios";
 import {
+  Button,
   Card,
   CardBody,
   CardFooter,
@@ -15,6 +16,8 @@ import {
 } from "@heroui/react";
 import useMediaQuery from "../hooks/useMediaQuery.tsx";
 import ManufactureIcon from "../components/manufacture_icon.tsx";
+import DialogMap from "../components/dialog_map.tsx";
+import { MdOutlineOpenInNew } from "react-icons/md";
 import { IoCalendarOutline, IoLocationOutline } from "react-icons/io5";
 import { PiMountains } from "react-icons/pi";
 import { useTranslation } from "react-i18next";
@@ -104,7 +107,7 @@ export default function PhotoPage() {
           null
       }
 
-      <div className='mt-4 pb-4'>
+      <div className={`mt-4 pb-4 ${photo.metadata.location ? 'grid grid-cols-1 gap-4 md:grid-cols-2' : ''}`}>
         <div>
           <Card>
             <CardBody>
@@ -172,6 +175,19 @@ export default function PhotoPage() {
           </Card>
         </div>
 
+        {photo.metadata.location && (
+          <Card className="relative min-h-48 overflow-hidden" isFooterBlurred>
+            <DialogMap coordinate={photo.metadata.location}/>
+            <CardFooter className="absolute bottom-1 right-1 z-10 w-auto rounded-large p-0">
+              <Button as="a" isIconOnly size="sm" variant="flat"
+                className="bg-black/20 text-white" aria-label={t("photo.open_map")}
+                href={`https://maps.google.com/?q=${photo.metadata.location.latitude},${photo.metadata.location.longitude}`}
+                target="_blank" rel="noopener noreferrer">
+                <MdOutlineOpenInNew size={16}/>
+              </Button>
+            </CardFooter>
+          </Card>
+        )}
       </div>
     </div>
   );

@@ -1,15 +1,17 @@
 import { Lens, Photo, Response } from "../models/gallery.ts";
 import {
-  Card, CardBody, CardFooter, CardHeader, Divider, Image, Link,
+  Button, Card, CardBody, CardFooter, CardHeader, Divider, Image, Link,
   Modal, ModalBody, ModalContent, ModalHeader, Skeleton,
 } from "@heroui/react";
 import { IoCalendarOutline, IoLocationOutline } from "react-icons/io5";
+import { MdOutlineOpenInNew } from "react-icons/md";
 import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import useMediaQuery from "../hooks/useMediaQuery.tsx";
 import ManufactureIcon from "./manufacture_icon.tsx";
 import CameraName from "./camera_name.tsx";
+import DialogMap from "./dialog_map.tsx";
 import { BASE_API2 } from "../constants/api.ts";
 import PhotoExposure from "./photo_exposure.tsx";
 import { formatPhotoCaptureTime, photoCaptureYear } from "../utils/photoCaptureTime.ts";
@@ -147,27 +149,43 @@ export default function PhotoModal(props: PhotoModalProps) {
               </div>
             </div>
 
-            <Card className="overflow-visible">
-              <CardHeader className="bg-default-100 py-2 text-small font-semibold">
-                {loading ? (
-                  <Skeleton className="h-5 w-2/5 rounded-lg"/>
-                ) : (
-                  <>
-                    <ManufactureIcon name={photo.metadata.camera?.manufacture.name}/>
-                    <CameraName camera={photo.metadata.camera}/>
-                  </>
-                )}
-              </CardHeader>
-              <CardBody className="overflow-y-visible py-2 text-small text-default-500">
-                {loading ? (
-                  <Skeleton className="h-5 w-4/5 rounded-lg"/>
-                ) : (
-                  photo.metadata.lens ? lensDisplayName(photo.metadata.lens) : t("unknown_lens")
-                )}
-              </CardBody>
-              <Divider className="bg-default-100"/>
-              <PhotoExposure metadata={photo.metadata}/>
-            </Card>
+            <div className={!sideBySide && photo.metadata.location ? "grid gap-3 sm:grid-cols-2" : "grid gap-3"}>
+              <Card className="overflow-visible">
+                <CardHeader className="bg-default-100 py-2 text-small font-semibold">
+                  {loading ? (
+                    <Skeleton className="h-5 w-2/5 rounded-lg"/>
+                  ) : (
+                    <>
+                      <ManufactureIcon name={photo.metadata.camera?.manufacture.name}/>
+                      <CameraName camera={photo.metadata.camera}/>
+                    </>
+                  )}
+                </CardHeader>
+                <CardBody className="overflow-y-visible py-2 text-small text-default-500">
+                  {loading ? (
+                    <Skeleton className="h-5 w-4/5 rounded-lg"/>
+                  ) : (
+                    photo.metadata.lens ? lensDisplayName(photo.metadata.lens) : t("unknown_lens")
+                  )}
+                </CardBody>
+                <Divider className="bg-default-100"/>
+                <PhotoExposure metadata={photo.metadata}/>
+              </Card>
+              {photo.metadata.location && (
+                <Card className="relative min-h-40 overflow-hidden" isFooterBlurred>
+                  <DialogMap coordinate={photo.metadata.location}/>
+                  <CardFooter className="absolute bottom-1 right-1 z-10 w-auto rounded-large p-0">
+                    <Button as="a" isIconOnly size="sm" variant="flat"
+                      className="bg-black/20 text-white"
+                      aria-label={t("photo.open_map")}
+                      href={`https://maps.google.com/?q=${photo.metadata.location.latitude},${photo.metadata.location.longitude}`}
+                      target="_blank" rel="noopener noreferrer">
+                      <MdOutlineOpenInNew size={16}/>
+                    </Button>
+                  </CardFooter>
+                </Card>
+              )}
+            </div>
           </div>
         </ModalBody>
       </ModalContent>

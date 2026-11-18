@@ -124,6 +124,7 @@ export default {
     "copyright.reserved": "© {{year}} Zw Gallery。無断使用・無断転載を禁じます。",
     "copyright.description": "当サイトに掲載されている写真やコンテンツの著作権は、各ページに表示された著作権者に帰属します。無断複製、転載、配布、改変、商用利用を禁じます。",
 
+    "photo.open_map": "Google マップで開く",
     "photo.switch_real": "HDR",
     "photo.hdr_tooltip": "すべてのデバイスが高ダイナミックレンジ（HDR）をサポートしているわけではありません。",
 
